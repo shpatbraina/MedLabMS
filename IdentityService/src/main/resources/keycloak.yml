@@ -1,0 +1,6 @@
+keycloak:
+  realm: MedLabMS
+  resource: super-client
+  auth-server-url: http://localhost:8180/auth
+  credentials:
+    secret: 28d5561f-50a1-46e3-8882-d680864a6e3d
