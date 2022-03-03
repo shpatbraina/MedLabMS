@@ -8,10 +8,14 @@ import org.keycloak.admin.client.resource.RoleScopeResource;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.ws.rs.core.Response;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -53,14 +57,14 @@ public class KeycloakGroupService {
         }
     }
 
-    public Mono<GroupRepresentation> updateGroup(String id, GroupRepresentation groupRepresentation) {
+    public Mono<Response> updateGroup(String id, GroupRepresentation groupRepresentation) {
         try {
             GroupResource groupResource = realmResource.groups().group(id);
             groupResource.update(groupRepresentation);
-            return getGroup(id);
+            return getGroup(id).flatMap(groupRepresentation1 -> Mono.just(Response.ok(groupRepresentation1).build()));
         } catch (Exception e) {
-            log.error("Failed to update group in keycloak with exception!", e);
-            return Mono.empty();
+            log.error("Failed to update group in keycloak with exception!");
+            return Mono.just(Response.status(Response.Status.BAD_REQUEST).entity("Group with this name already exists!").build());
         }
     }
 
@@ -75,27 +79,28 @@ public class KeycloakGroupService {
         }
     }
 
-    public Mono<List<RoleRepresentation>> getAllAvailableRoles(String id) {
+    public Flux<RoleRepresentation> getAllAvailableRoles(String id) {
 
         try {
-            return Mono.just(realmResource.groups().group(id).roles().realmLevel().listAvailable());
+            return Flux.fromIterable(realmResource.groups().group(id).roles().realmLevel().listAvailable().stream()
+                    .filter(filterOutDefaultRoles()).collect(Collectors.toList()));
         } catch (Exception e) {
             log.error("Error while trying to get roles: {0} " + e.getMessage());
-            return Mono.empty();
+            return Flux.empty();
         }
     }
 
-    public Mono<List<RoleRepresentation>> getAllEffectiveRoles(String id) {
+    public Flux<RoleRepresentation> getAllEffectiveRoles(String id) {
 
         try {
-            return Mono.just(realmResource.groups().group(id).roles().realmLevel().listEffective());
+            return Flux.fromIterable(realmResource.groups().group(id).roles().realmLevel().listEffective());
         } catch (Exception e) {
             log.error("Error while trying to get roles: {0} " + e.getMessage());
-            return Mono.empty();
+            return Flux.empty();
         }
     }
 
-    public Mono<List<RoleRepresentation>> updateEffectiveRoles(String id, List<String> roles) {
+    public Flux<RoleRepresentation> updateEffectiveRoles(String id, List<String> roles) {
 
         try {
             RoleScopeResource roleScopeResource = realmResource.groups().group(id).roles().realmLevel();
@@ -103,10 +108,18 @@ public class KeycloakGroupService {
             roleScopeResource.add(roleScopeResource.listAvailable().stream()
                     .filter(roleRepresentation -> roles.contains(roleRepresentation.getName()))
                     .toList());
-            return Mono.just(roleScopeResource.listEffective());
+            return Flux.fromIterable(roleScopeResource.listEffective());
         } catch (Exception e) {
             log.error("Error while trying to update roles: {0} " + e.getMessage());
-            return Mono.empty();
+            throw e;
         }
+    }
+
+    private Predicate<RoleRepresentation> filterOutDefaultRoles() {
+        List<String> defaultRoleNames = new ArrayList<>();
+        defaultRoleNames.add("offline_access");
+        defaultRoleNames.add("uma_authorization");
+        defaultRoleNames.add("default-roles-medlabms");
+        return o -> !defaultRoleNames.contains(o.getName());
     }
 }

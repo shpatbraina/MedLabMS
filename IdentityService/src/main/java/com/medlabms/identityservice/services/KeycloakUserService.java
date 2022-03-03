@@ -58,7 +58,7 @@ public class KeycloakUserService {
         }
     }
 
-    public Mono<UserRepresentation> updateUser(String id, UserRepresentation userRepresentation) {
+    public Mono<Response> updateUser(String id, UserRepresentation userRepresentation) {
         try {
             UserResource userResource = realmResource.users().get(id);
             userResource.update(userRepresentation);
@@ -66,10 +66,10 @@ public class KeycloakUserService {
             userRepresentation.getGroups().stream()
                     .map(group -> realmResource.groups().groups(group, 0, 1).get(0).getId())
                     .forEach(userResource::joinGroup);
-            return getUser(id);
+            return getUser(id).flatMap(userRepresentation1 -> Mono.just(Response.ok(userRepresentation1).build()));
         } catch (Exception e) {
-            log.error("Failed to update user in keycloak with exception!", e);
-            return Mono.empty();
+            log.error("Failed to update user in keycloak with exception!");
+            return Mono.just(Response.status(Response.Status.BAD_REQUEST).entity("User with these data already exists!").build());
         }
     }
 

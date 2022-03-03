@@ -1,5 +1,6 @@
 package com.medlabms.identityservice.services;
 
+import com.medlabms.identityservice.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.GroupDTO;
 import com.medlabms.identityservice.models.entities.Group;
 import com.medlabms.identityservice.repositories.GroupRepository;
@@ -10,6 +11,7 @@ import org.keycloak.representations.idm.GroupRepresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static javax.ws.rs.core.Response.Status.CREATED;
+import static javax.ws.rs.core.Response.Status.OK;
 
 @Slf4j
 @Service
@@ -44,7 +47,7 @@ public class GroupService {
     }
 
     public Mono<List<Group>> getAllGroups() {
-        return groupRepository.findAll().collectList();
+        return groupRepository.findAllBy(PageRequest.ofSize(Integer.MAX_VALUE).withSort(Sort.Direction.ASC, "id")).collectList();
     }
 
     public Mono<GroupDTO> getGroup(String id) {
@@ -76,12 +79,15 @@ public class GroupService {
         GroupRepresentation groupRepresentation = groupMapper.dtoModelToKCEntity(groupDTO);
         return groupRepository.findById(id)
                 .flatMap(group -> keycloakGroupService.updateGroup(group.getKcId(), groupRepresentation)
-                        .doOnError(error -> ResponseEntity.badRequest().body(error))
-                        .flatMap(groupRepresentation1 -> {
-                            Group group1 = groupMapper.kcEntityToEntity(groupRepresentation1);
-                            group1.setId(group.getId());
-                            return groupRepository.save(group1)
-                                    .flatMap(group2 -> Mono.just(ResponseEntity.ok(groupMapper.entityToDtoModel(group2))));
+                        .flatMap(response -> {
+                            if (OK.getStatusCode() == response.getStatus()) {
+                                Group group1 = groupMapper.kcEntityToEntity(response.readEntity(GroupRepresentation.class));
+                                group1.setId(group.getId());
+                                return groupRepository.save(group1)
+                                        .flatMap(group2 -> Mono.just(ResponseEntity.ok(groupMapper.entityToDtoModel(group2))));
+                            } else {
+                                return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(response.getEntity().toString()).build()));
+                            }
                         }));
     }
 
@@ -100,6 +106,7 @@ public class GroupService {
         try {
             return groupRepository.findById(id)
                     .flatMap(group -> keycloakGroupService.getAllAvailableRoles(group.getKcId())
+                            .collectList()
                             .flatMap(roleRepresentations -> Mono.just(ResponseEntity.ok(roleRepresentations
                                     .stream()
                                     .map(roleMapper::entityToModel)
@@ -115,6 +122,7 @@ public class GroupService {
         try {
             return groupRepository.findById(id)
                     .flatMap(group -> keycloakGroupService.getAllEffectiveRoles(group.getKcId())
+                            .collectList()
                             .flatMap(roleRepresentations -> Mono.just(ResponseEntity.ok(roleRepresentations
                                     .stream()
                                     .map(roleMapper::entityToModel)
@@ -130,6 +138,7 @@ public class GroupService {
         try {
             return groupRepository.findById(id)
                     .flatMap(group -> keycloakGroupService.updateEffectiveRoles(group.getKcId(), roles)
+                            .collectList()
                             .flatMap(roleRepresentations -> Mono.just(ResponseEntity.ok(roleRepresentations
                                     .stream()
                                     .map(roleMapper::entityToModel)

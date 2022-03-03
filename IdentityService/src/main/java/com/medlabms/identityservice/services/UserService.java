@@ -1,5 +1,6 @@
 package com.medlabms.identityservice.services;
 
+import com.medlabms.identityservice.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.UserDTO;
 import com.medlabms.identityservice.models.entities.User;
 import com.medlabms.identityservice.repositories.UserRepository;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import static javax.ws.rs.core.Response.Status.CREATED;
+import static javax.ws.rs.core.Response.Status.OK;
 
 @Slf4j
 @Service
@@ -65,12 +67,16 @@ public class UserService {
         UserRepresentation userRepresentation = userMapper.dtoModelToKCEntity(userDTO);
         return userRepository.findById(id)
                 .flatMap(user -> keycloakUserService.updateUser(user.getKcId(), userRepresentation)
-                       .doOnError(error -> ResponseEntity.badRequest().body(error))
-                        .flatMap(userRepresentation1 -> {
-                            User user1 = userMapper.kcEntityToEntity(userRepresentation1);
-                            user1.setId(user.getId());
-                            return userRepository.save(user1)
-                                .flatMap(user2 -> Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user2))));
+                        .flatMap(response -> {
+                            if (OK.getStatusCode() == response.getStatus()) {
+                                User user1 = userMapper.kcEntityToEntity(response.readEntity(UserRepresentation.class));
+                                user1.setId(user.getId());
+                                return userRepository.save(user1)
+                                        .flatMap(user2 -> Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user2))));
+                            } else {
+                                return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
+                                        .errorMessage(response.getEntity().toString()).build()));
+                            }
                         }));
     }
 

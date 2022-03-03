@@ -4,6 +4,7 @@ import com.medlabms.identityservice.models.dtos.GroupDTO;
 import com.medlabms.identityservice.models.dtos.RoleDTO;
 import com.medlabms.identityservice.services.GroupService;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,7 +29,7 @@ public class GroupController {
     @PreAuthorize("hasAuthority('SCOPE_groups:read')")
     public Mono<ResponseEntity<Object>> getAllGroups(@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
         if(page != null && size != null)
-            return groupService.getAllGroups(PageRequest.of(page,size)).flatMap(groups -> Mono.just(ResponseEntity.ok(groups)));
+            return groupService.getAllGroups(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(groups -> Mono.just(ResponseEntity.ok(groups)));
         return groupService.getAllGroups().flatMap(groups -> Mono.just(ResponseEntity.ok(groups)));
     }
 

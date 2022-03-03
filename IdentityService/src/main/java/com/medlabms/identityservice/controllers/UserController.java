@@ -5,6 +5,7 @@ import com.medlabms.identityservice.models.entities.User;
 import com.medlabms.identityservice.services.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,7 +27,7 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasAuthority('SCOPE_users:read')")
     public Mono<ResponseEntity<Page<User>>> getAllUsers(@RequestParam Integer page, @RequestParam Integer size) {
-        return userService.getAllUsers(PageRequest.of(page,size)).flatMap(users -> Mono.just(ResponseEntity.ok(users)));
+        return userService.getAllUsers(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(users -> Mono.just(ResponseEntity.ok(users)));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
