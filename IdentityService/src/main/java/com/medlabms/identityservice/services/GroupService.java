@@ -56,6 +56,11 @@ public class GroupService {
                         .flatMap(group -> Mono.just(groupMapper.entityToDtoModel(group))));
     }
 
+    public Mono<GroupDTO> getGroup(Long id) {
+        return groupRepository.findById(id)
+                .flatMap(group -> Mono.just(groupMapper.entityToDtoModel(group)));
+    }
+
     public Mono<ResponseEntity<Object>> createGroup(GroupDTO groupDTO) {
         GroupRepresentation groupRepresentation = groupMapper.dtoModelToKCEntity(groupDTO);
         return keycloakGroupService.createGroup(groupRepresentation)

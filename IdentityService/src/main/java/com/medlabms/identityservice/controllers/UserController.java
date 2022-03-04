@@ -1,7 +1,6 @@
 package com.medlabms.identityservice.controllers;
 
 import com.medlabms.identityservice.models.dtos.UserDTO;
-import com.medlabms.identityservice.models.entities.User;
 import com.medlabms.identityservice.services.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,7 +25,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('SCOPE_users:read')")
-    public Mono<ResponseEntity<Page<User>>> getAllUsers(@RequestParam Integer page, @RequestParam Integer size) {
+    public Mono<ResponseEntity<Page<UserDTO>>> getAllUsers(@RequestParam Integer page, @RequestParam Integer size) {
         return userService.getAllUsers(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(users -> Mono.just(ResponseEntity.ok(users)));
     }
 
