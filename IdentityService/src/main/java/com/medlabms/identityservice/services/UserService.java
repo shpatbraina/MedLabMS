@@ -1,5 +1,6 @@
 package com.medlabms.identityservice.services;
 
+import com.medlabms.identityservice.exceptions.ChildFoundException;
 import com.medlabms.identityservice.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.UserDTO;
 import com.medlabms.identityservice.models.entities.User;
@@ -39,11 +40,11 @@ public class UserService {
 
         return userRepository.findAllBy(pageRequest)
                 .flatMap(user -> groupService.getGroup(user.getGroupId())
-                            .flatMap(groupDTO -> {
-                                var userDTO = userMapper.entityToDtoModel(user);
-                                userDTO.setGroupName(groupDTO.getName());
-                                return Mono.just(userDTO);
-                            }))
+                        .flatMap(groupDTO -> {
+                            var userDTO = userMapper.entityToDtoModel(user);
+                            userDTO.setGroupName(groupDTO.getName());
+                            return Mono.just(userDTO);
+                        }))
                 .collectList()
                 .zipWith(userRepository.count())
                 .flatMap(objects -> Mono.just(new PageImpl<>(objects.getT1(), pageRequest, objects.getT2())));
@@ -58,27 +59,27 @@ public class UserService {
         UserRepresentation userRepresentation = userMapper.dtoModelToKCEntity(userDTO);
         userRepresentation.setEnabled(true);
         return groupService.getGroup(userDTO.getGroupId()).flatMap(groupDTO -> {
-                userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
-                return keycloakUserService.createUser(userRepresentation)
-                .flatMap(response -> {
-                    if (CREATED.getStatusCode() == response.getStatus()) {
-                        return keycloakUserService.searchUser(userDTO.getUsername())
-                                .doOnSuccess(userRepresentation1 -> {
-                                    User user = userMapper.kcEntityToEntity(userRepresentation1);
-                                    user.setGroupId(userDTO.getGroupId());
-                                    userRepository
-                                            .save(user)
-                                            .subscribe();
-                                })
-                                .map(userRepresentation1 -> {
-                                    UserDTO userDTO1 = userMapper.kcEntityToDtoModel(userRepresentation1);
-                                    userDTO1.setGroupId(userDTO.getGroupId());
-                                    return ResponseEntity.ok(userDTO1);
-                                });
-                    } else {
-                        return Mono.just(ResponseEntity.badRequest().body(response.readEntity(String.class)));
-                    }
-                });
+            userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
+            return keycloakUserService.createUser(userRepresentation)
+                    .flatMap(response -> {
+                        if (CREATED.getStatusCode() == response.getStatus()) {
+                            return keycloakUserService.searchUser(userDTO.getUsername())
+                                    .doOnSuccess(userRepresentation1 -> {
+                                        User user = userMapper.kcEntityToEntity(userRepresentation1);
+                                        user.setGroupId(userDTO.getGroupId());
+                                        userRepository
+                                                .save(user)
+                                                .subscribe();
+                                    })
+                                    .map(userRepresentation1 -> {
+                                        UserDTO userDTO1 = userMapper.kcEntityToDtoModel(userRepresentation1);
+                                        userDTO1.setGroupId(userDTO.getGroupId());
+                                        return ResponseEntity.ok(userDTO1);
+                                    });
+                        } else {
+                            return Mono.just(ResponseEntity.badRequest().body(response.readEntity(String.class)));
+                        }
+                    });
         });
     }
 
@@ -86,32 +87,37 @@ public class UserService {
         UserRepresentation userRepresentation = userMapper.dtoModelToKCEntity(userDTO);
         return userRepository.findById(id)
                 .flatMap(user -> groupService.getGroup(userDTO.getGroupId()).flatMap(groupDTO -> {
-                        userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
-                        return keycloakUserService.updateUser(user.getKcId(), userRepresentation)
-                        .flatMap(response -> {
-                            if (OK.getStatusCode() == response.getStatus()) {
-                                User user1 = userMapper.kcEntityToEntity(response.readEntity(UserRepresentation.class));
-                                user1.setId(user.getId());
-                                user1.setGroupId(userDTO.getGroupId());
-                                return userRepository.save(user1)
-                                        .flatMap(user2 -> Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user2))));
-                            } else {
-                                return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
-                                        .errorMessage(response.getEntity().toString()).build()));
-                            }
-                        });
+                    userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
+                    return keycloakUserService.updateUser(user.getKcId(), userRepresentation)
+                            .flatMap(response -> {
+                                if (OK.getStatusCode() == response.getStatus()) {
+                                    User user1 = userMapper.kcEntityToEntity(response.readEntity(UserRepresentation.class));
+                                    user1.setId(user.getId());
+                                    user1.setGroupId(userDTO.getGroupId());
+                                    return userRepository.save(user1)
+                                            .flatMap(user2 -> Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user2))));
+                                } else {
+                                    return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
+                                            .errorMessage(response.getEntity().toString()).build()));
+                                }
+                            });
                 }));
     }
 
     public Mono<ResponseEntity<Object>> deleteUser(Long id) {
-        return userRepository.findById(id).flatMap(user -> keycloakUserService.deleteUser(user.getKcId())
-                .flatMap(aBoolean -> {
-                    if (aBoolean) {
-                        return userRepository.delete(user).flatMap(unused -> Mono.just(ResponseEntity.ok(aBoolean)));
-                    } else {
-                        return Mono.just(ResponseEntity.badRequest().build());
-                    }
-                }));
+        return userRepository.findById(id).flatMap(user ->
+                Mono.defer(() -> userRepository.delete(user))
+                        .onErrorResume(throwable -> {
+                            throw new ChildFoundException();
+                        })
+                        .then(Mono.defer(() ->
+                                keycloakUserService.deleteUser(user.getKcId())
+                                        .flatMap(aBoolean -> {
+                                            if (aBoolean) {
+                                                return Mono.just(ResponseEntity.ok(aBoolean));
+                                            } else {
+                                                return Mono.just(ResponseEntity.badRequest().build());
+                                            }
+                                        }))));
     }
-
 }

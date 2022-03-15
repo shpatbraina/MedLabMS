@@ -1,5 +1,6 @@
 package com.medlabms.identityservice.services;
 
+import com.medlabms.identityservice.exceptions.ChildFoundException;
 import com.medlabms.identityservice.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.GroupDTO;
 import com.medlabms.identityservice.models.entities.Group;
@@ -97,14 +98,20 @@ public class GroupService {
     }
 
     public Mono<ResponseEntity<Object>> deleteGroup(Long id) {
-        return groupRepository.findById(id).flatMap(group -> keycloakGroupService.deleteGroup(group.getKcId())
-                .flatMap(aBoolean -> {
-                    if (aBoolean) {
-                        return groupRepository.delete(group).flatMap(unused -> Mono.just(ResponseEntity.ok(aBoolean)));
-                    } else {
-                        return Mono.just(ResponseEntity.badRequest().build());
-                    }
-                }));
+        return groupRepository.findById(id).flatMap(group ->
+                Mono.defer(() -> groupRepository.delete(group))
+                    .onErrorResume(throwable -> {
+                        throw new ChildFoundException();
+                    })
+                    .then(Mono.defer(() ->
+                            keycloakGroupService.deleteGroup(group.getKcId())
+                                    .flatMap(aBoolean -> {
+                                        if (aBoolean) {
+                                            return Mono.just(ResponseEntity.ok(aBoolean));
+                                        } else {
+                                            return Mono.just(ResponseEntity.badRequest().build());
+                                        }
+                                    }))));
     }
 
     public Mono<ResponseEntity<Object>> getAllAvailableRoles(Long id) {
