@@ -1,6 +1,6 @@
 package com.medlabms.identityservice.services;
 
-import com.medlabms.identityservice.exceptions.ChildFoundException;
+import com.medlabms.core.exceptions.ChildFoundException;
 import com.medlabms.identityservice.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.GroupDTO;
 import com.medlabms.identityservice.models.entities.Group;
@@ -68,12 +68,10 @@ public class GroupService {
                 .flatMap(response -> {
                     if (CREATED.getStatusCode() == response.getStatus()) {
                         return keycloakGroupService.searchGroup(groupDTO.getName())
-                                .doOnSuccess(groupRepresentation1 ->
-                                        groupRepository
-                                                .save(groupMapper.kcEntityToEntity(groupRepresentation1))
-                                                .subscribe())
-                                .flatMap(groupRepresentation1 -> groupRepository.findByKcId(groupRepresentation1.getId())
-                                        .flatMap(group -> Mono.just(ResponseEntity.ok(groupMapper.entityToDtoModel(group)))));
+                                .zipWhen(groupRepresentation1 -> groupRepository
+                                        .save(groupMapper.kcEntityToEntity(groupRepresentation1))
+                                        .doOnError(throwable -> log.error(throwable.getMessage())))
+                                .flatMap(objects -> Mono.just(ResponseEntity.ok(groupMapper.entityToDtoModel(objects.getT2()))));
                     } else {
                         return Mono.just(ResponseEntity.badRequest().body(response.readEntity(String.class)));
                     }
@@ -89,7 +87,8 @@ public class GroupService {
                             if (OK.getStatusCode() == response.getStatus()) {
                                 Group group1 = groupMapper.kcEntityToEntity(response.readEntity(GroupRepresentation.class));
                                 group1.setId(group.getId());
-                                return groupRepository.save(group1)
+                                groupMapper.updateGroup(group1, group);
+                                return groupRepository.save(group)
                                         .flatMap(group2 -> Mono.just(ResponseEntity.ok(groupMapper.entityToDtoModel(group2))));
                             } else {
                                 return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(response.getEntity().toString()).build()));
@@ -100,18 +99,18 @@ public class GroupService {
     public Mono<ResponseEntity<Object>> deleteGroup(Long id) {
         return groupRepository.findById(id).flatMap(group ->
                 Mono.defer(() -> groupRepository.delete(group))
-                    .onErrorResume(throwable -> {
-                        throw new ChildFoundException();
-                    })
-                    .then(Mono.defer(() ->
-                            keycloakGroupService.deleteGroup(group.getKcId())
-                                    .flatMap(aBoolean -> {
-                                        if (aBoolean) {
-                                            return Mono.just(ResponseEntity.ok(aBoolean));
-                                        } else {
-                                            return Mono.just(ResponseEntity.badRequest().build());
-                                        }
-                                    }))));
+                        .onErrorResume(throwable -> {
+                            throw new ChildFoundException();
+                        })
+                        .then(Mono.defer(() ->
+                                keycloakGroupService.deleteGroup(group.getKcId())
+                                        .flatMap(aBoolean -> {
+                                            if (aBoolean) {
+                                                return Mono.just(ResponseEntity.ok(aBoolean));
+                                            } else {
+                                                return Mono.just(ResponseEntity.badRequest().build());
+                                            }
+                                        }))));
     }
 
     public Mono<ResponseEntity<Object>> getAllAvailableRoles(Long id) {

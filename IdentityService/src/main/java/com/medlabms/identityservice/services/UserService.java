@@ -1,6 +1,6 @@
 package com.medlabms.identityservice.services;
 
-import com.medlabms.identityservice.exceptions.ChildFoundException;
+import com.medlabms.core.exceptions.ChildFoundException;
 import com.medlabms.identityservice.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.UserDTO;
 import com.medlabms.identityservice.models.entities.User;
@@ -64,18 +64,15 @@ public class UserService {
                     .flatMap(response -> {
                         if (CREATED.getStatusCode() == response.getStatus()) {
                             return keycloakUserService.searchUser(userDTO.getUsername())
-                                    .doOnSuccess(userRepresentation1 -> {
+                                    .zipWhen(userRepresentation1 -> {
                                         User user = userMapper.kcEntityToEntity(userRepresentation1);
                                         user.setGroupId(userDTO.getGroupId());
-                                        userRepository
+                                        return userRepository
                                                 .save(user)
-                                                .subscribe();
+                                                .doOnError(throwable -> log.error(throwable.getMessage()));
                                     })
-                                    .map(userRepresentation1 -> {
-                                        UserDTO userDTO1 = userMapper.kcEntityToDtoModel(userRepresentation1);
-                                        userDTO1.setGroupId(userDTO.getGroupId());
-                                        return ResponseEntity.ok(userDTO1);
-                                    });
+                                    .flatMap(objects -> Mono.just(objects.getT2()))
+                                    .map(user -> ResponseEntity.ok(userMapper.entityToDtoModel(user)));
                         } else {
                             return Mono.just(ResponseEntity.badRequest().body(response.readEntity(String.class)));
                         }
@@ -94,7 +91,8 @@ public class UserService {
                                     User user1 = userMapper.kcEntityToEntity(response.readEntity(UserRepresentation.class));
                                     user1.setId(user.getId());
                                     user1.setGroupId(userDTO.getGroupId());
-                                    return userRepository.save(user1)
+                                    userMapper.updateUser(user1, user);
+                                    return userRepository.save(user)
                                             .flatMap(user2 -> Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user2))));
                                 } else {
                                     return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()

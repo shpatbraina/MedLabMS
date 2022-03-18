@@ -1,4 +1,4 @@
-package com.medlabms.identityservice.exceptions;
+package com.medlabms.core.exceptions;
 
 import org.springframework.dao.DataIntegrityViolationException;
 

@@ -1,4 +1,4 @@
-package com.medlabms.identityservice.configs;
+package com.medlabms.core.configs;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.convert.converter.Converter;

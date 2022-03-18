@@ -1,12 +1,13 @@
 package com.medlabms.identityservice.models.entities;
 
+import com.medlabms.core.models.Model;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
 @Table("groups")
-public class Group {
+public class Group extends Model {
 
     @Id
     private Long id;

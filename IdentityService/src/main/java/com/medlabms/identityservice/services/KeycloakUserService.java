@@ -6,10 +6,13 @@ import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import javax.ws.rs.core.Response;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -43,18 +46,22 @@ public class KeycloakUserService {
             return Mono.just(userRepresentation);
         } catch (Exception e) {
             log.error("Failed to search user from keycloak with exception!", e);
-            return Mono.empty();
+            return Mono.error(e);
         }
     }
 
     public Mono<Response> createUser(UserRepresentation userRepresentation) {
         try {
             Response response = realmResource.users().create(userRepresentation);
-            return searchUser(userRepresentation.getUsername()).flatMap(userRepresentation1 ->
-                resetPassword(userRepresentation1.getId()).flatMap(aBoolean -> Mono.just(response)));
+            if (HttpStatus.OK.value() == response.getStatus()) {
+                return searchUser(userRepresentation.getUsername()).flatMap(userRepresentation1 ->
+                        resetPassword(userRepresentation1.getId()).flatMap(aBoolean -> Mono.just(response)));
+            }
+                throw new WebClientResponseException(response.getStatus(), response.getStatusInfo().getReasonPhrase(),
+                        null, response.readEntity(String.class).getBytes(), StandardCharsets.UTF_8);
         } catch (Exception e) {
             log.error("Failed to create user in keycloak with exception!", e);
-            return Mono.just(Response.status(Response.Status.BAD_REQUEST).build());
+            return Mono.just(Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build());
         }
     }
 

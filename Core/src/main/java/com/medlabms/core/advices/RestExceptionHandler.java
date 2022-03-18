@@ -1,6 +1,6 @@
-package com.medlabms.identityservice.advices;
+package com.medlabms.core.advices;
 
-import com.medlabms.identityservice.exceptions.ChildFoundException;
+import com.medlabms.core.exceptions.ChildFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;

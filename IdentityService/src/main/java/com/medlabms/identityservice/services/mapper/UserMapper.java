@@ -3,10 +3,7 @@ package com.medlabms.identityservice.services.mapper;
 import com.medlabms.identityservice.models.dtos.UserDTO;
 import com.medlabms.identityservice.models.entities.User;
 import org.keycloak.representations.idm.UserRepresentation;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.Mappings;
-import org.mapstruct.ReportingPolicy;
+import org.mapstruct.*;
 
 @Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface UserMapper {
@@ -27,4 +24,7 @@ public interface UserMapper {
     UserRepresentation dtoModelToKCEntity(UserDTO userDTO);
 
     UserDTO kcEntityToDtoModel(UserRepresentation entity);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void updateUser(User user, @MappingTarget User user1);
 }
