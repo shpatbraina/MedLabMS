@@ -1,6 +1,6 @@
 package com.medlabms.identityservice.models.entities;
 
-import com.medlabms.core.models.Model;
+import com.medlabms.core.models.entities.Model;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;

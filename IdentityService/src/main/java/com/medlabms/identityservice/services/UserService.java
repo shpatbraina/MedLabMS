@@ -1,24 +1,23 @@
 package com.medlabms.identityservice.services;
 
-import com.medlabms.core.exceptions.ChildFoundException;
-import com.medlabms.identityservice.models.dtos.ErrorDTO;
-import com.medlabms.identityservice.models.dtos.UserDTO;
-import com.medlabms.identityservice.models.entities.User;
-import com.medlabms.identityservice.repositories.UserRepository;
-import com.medlabms.identityservice.services.mapper.UserMapper;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Collections;
+
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+
+import com.medlabms.core.exceptions.ChildFoundException;
+import com.medlabms.core.models.dtos.ErrorDTO;
+import com.medlabms.identityservice.models.dtos.UserDTO;
+import com.medlabms.identityservice.models.entities.User;
+import com.medlabms.identityservice.repositories.UserRepository;
+import com.medlabms.identityservice.services.mappers.UserMapper;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.Collections;
-
-import static javax.ws.rs.core.Response.Status.CREATED;
-import static javax.ws.rs.core.Response.Status.OK;
 
 @Slf4j
 @Service
@@ -62,7 +61,7 @@ public class UserService {
             userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
             return keycloakUserService.createUser(userRepresentation)
                     .flatMap(response -> {
-                        if (CREATED.getStatusCode() == response.getStatus()) {
+                        if (HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
                             return keycloakUserService.searchUser(userDTO.getUsername())
                                     .zipWhen(userRepresentation1 -> {
                                         User user = userMapper.kcEntityToEntity(userRepresentation1);
@@ -74,7 +73,7 @@ public class UserService {
                                     .flatMap(objects -> Mono.just(objects.getT2()))
                                     .map(user -> ResponseEntity.ok(userMapper.entityToDtoModel(user)));
                         } else {
-                            return Mono.just(ResponseEntity.badRequest().body(response.readEntity(String.class)));
+                            return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(response.readEntity(String.class)).build()));
                         }
                     });
         });
@@ -87,7 +86,7 @@ public class UserService {
                     userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
                     return keycloakUserService.updateUser(user.getKcId(), userRepresentation)
                             .flatMap(response -> {
-                                if (OK.getStatusCode() == response.getStatus()) {
+                                if (HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
                                     User user1 = userMapper.kcEntityToEntity(response.readEntity(UserRepresentation.class));
                                     user1.setId(user.getId());
                                     user1.setGroupId(userDTO.getGroupId());

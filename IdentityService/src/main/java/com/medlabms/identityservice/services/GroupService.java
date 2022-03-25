@@ -1,27 +1,26 @@
 package com.medlabms.identityservice.services;
 
-import com.medlabms.core.exceptions.ChildFoundException;
-import com.medlabms.identityservice.models.dtos.ErrorDTO;
-import com.medlabms.identityservice.models.dtos.GroupDTO;
-import com.medlabms.identityservice.models.entities.Group;
-import com.medlabms.identityservice.repositories.GroupRepository;
-import com.medlabms.identityservice.services.mapper.GroupMapper;
-import com.medlabms.identityservice.services.mapper.RoleMapper;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+
+import com.medlabms.core.exceptions.ChildFoundException;
+import com.medlabms.core.models.dtos.ErrorDTO;
+import com.medlabms.identityservice.models.dtos.GroupDTO;
+import com.medlabms.identityservice.models.entities.Group;
+import com.medlabms.identityservice.repositories.GroupRepository;
+import com.medlabms.identityservice.services.mappers.GroupMapper;
+import com.medlabms.identityservice.services.mappers.RoleMapper;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static javax.ws.rs.core.Response.Status.CREATED;
-import static javax.ws.rs.core.Response.Status.OK;
 
 @Slf4j
 @Service
@@ -66,7 +65,7 @@ public class GroupService {
         GroupRepresentation groupRepresentation = groupMapper.dtoModelToKCEntity(groupDTO);
         return keycloakGroupService.createGroup(groupRepresentation)
                 .flatMap(response -> {
-                    if (CREATED.getStatusCode() == response.getStatus()) {
+                    if (HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
                         return keycloakGroupService.searchGroup(groupDTO.getName())
                                 .zipWhen(groupRepresentation1 -> groupRepository
                                         .save(groupMapper.kcEntityToEntity(groupRepresentation1))
@@ -84,7 +83,7 @@ public class GroupService {
         return groupRepository.findById(id)
                 .flatMap(group -> keycloakGroupService.updateGroup(group.getKcId(), groupRepresentation)
                         .flatMap(response -> {
-                            if (OK.getStatusCode() == response.getStatus()) {
+                            if (HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
                                 Group group1 = groupMapper.kcEntityToEntity(response.readEntity(GroupRepresentation.class));
                                 group1.setId(group.getId());
                                 groupMapper.updateGroup(group1, group);
@@ -125,7 +124,7 @@ public class GroupService {
                             ))));
         } catch (Exception e) {
             log.error("Error while trying to get roles: {0} " + e.getMessage());
-            return Mono.just(ResponseEntity.badRequest().build());
+            return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(e.getMessage()).build()));
         }
     }
 
@@ -141,7 +140,7 @@ public class GroupService {
                             ))));
         } catch (Exception e) {
             log.error("Error while trying to get roles: {0} " + e.getMessage());
-            return Mono.just(ResponseEntity.badRequest().build());
+            return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(e.getMessage()).build()));
         }
     }
 
@@ -156,7 +155,7 @@ public class GroupService {
                                     .collect(Collectors.toList())))));
         } catch (Exception e) {
             log.error("Error while trying to update roles: {0} " + e.getMessage());
-            return Mono.just(ResponseEntity.badRequest().build());
+            return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(e.getMessage()).build()));
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.medlabms.identityservice.services.mapper;
+package com.medlabms.identityservice.services.mappers;
 
 import com.medlabms.identityservice.models.dtos.GroupDTO;
 import com.medlabms.identityservice.models.entities.Group;

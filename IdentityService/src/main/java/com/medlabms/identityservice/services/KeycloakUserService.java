@@ -1,6 +1,11 @@
 package com.medlabms.identityservice.services;
 
-import lombok.extern.slf4j.Slf4j;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import javax.ws.rs.core.Response;
+
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
@@ -9,12 +14,9 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
 
-import javax.ws.rs.core.Response;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Service
@@ -53,7 +55,7 @@ public class KeycloakUserService {
     public Mono<Response> createUser(UserRepresentation userRepresentation) {
         try {
             Response response = realmResource.users().create(userRepresentation);
-            if (HttpStatus.OK.value() == response.getStatus()) {
+            if (HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
                 return searchUser(userRepresentation.getUsername()).flatMap(userRepresentation1 ->
                         resetPassword(userRepresentation1.getId()).flatMap(aBoolean -> Mono.just(response)));
             }

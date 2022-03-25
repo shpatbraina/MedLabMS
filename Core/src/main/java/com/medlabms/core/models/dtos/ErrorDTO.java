@@ -1,4 +1,4 @@
-package com.medlabms.identityservice.models.dtos;
+package com.medlabms.core.models.dtos;
 
 import lombok.Builder;
 import lombok.Data;
