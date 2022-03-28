@@ -15,6 +15,9 @@
 
     <modules>
         <module>Core</module>
+        <module>DatabaseService</module>
+        <module>DiscoveryService</module>
+        <module>GatewayService</module>
         <module>IdentityService</module>
         <module>LabService</module>
     </modules>
