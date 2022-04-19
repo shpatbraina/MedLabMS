@@ -19,6 +19,7 @@ public class RouterConfiguration {
                 .route("lab-service", r -> r.path("/patients/**").uri("lb://lab-service"))
                 .route("lab-service", r -> r.path("/analysesGroups/**").uri("lb://lab-service"))
                 .route("lab-service", r -> r.path("/analyses/**").uri("lb://lab-service"))
+                .route("lab-service", r -> r.path("/visits/**").uri("lb://lab-service"))
                 .build();
     }
 

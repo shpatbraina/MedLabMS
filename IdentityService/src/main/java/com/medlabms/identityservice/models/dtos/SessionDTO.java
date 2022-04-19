@@ -18,8 +18,8 @@ public class SessionDTO {
 	private boolean addAnalysesGroups;
 	private boolean readAnalyses;
 	private boolean addAnalyses;
-	private boolean readMetrics;
-	private boolean addMetrics;
+	private boolean readVisits;
+	private boolean addVisits;
 
 	public SessionDTO(String name, List<String> permissions) {
 
@@ -34,6 +34,8 @@ public class SessionDTO {
 		this.addAnalyses = permissions.contains("analyses:save");
 		this.readAnalysesGroups = permissions.contains("analysesGroups:read");
 		this.addAnalysesGroups = permissions.contains("analysesGroups:save");
+		this.readVisits = permissions.contains("visits:read");
+		this.addVisits = permissions.contains("visits:save");
 	}
 
 }

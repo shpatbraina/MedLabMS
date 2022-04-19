@@ -1,8 +1,12 @@
 package com.medlabms.labservice.services;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +31,14 @@ public class AnalysisService {
 		this.analysisRepository = analysisRepository;
 		this.analysesGroupService = analysesGroupService;
 		this.analysisMapper = analysisMapper;
+	}
+
+	public Mono<List<AnalysisDTO>> getAllAnalyses() {
+		return analysisRepository.findAllBy(PageRequest.ofSize(Integer.MAX_VALUE)
+						.withSort(Sort.Direction.ASC, "id"))
+				.collectList()
+				.flatMap(analyses -> Mono.just(analyses.stream()
+						.map(analysisMapper::entityToDtoModel).collect(Collectors.toList())));
 	}
 
 	public Mono<Page<AnalysisDTO>> getAllAnalyses(PageRequest pageRequest) {

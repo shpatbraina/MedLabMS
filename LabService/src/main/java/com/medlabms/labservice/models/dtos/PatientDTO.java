@@ -16,4 +16,8 @@ public class PatientDTO {
     private Long personalId;
     private String email;
     private String phone;
+
+    public String getFullName() {
+        return firstName + " " + lastName;
+    }
 }

@@ -33,8 +33,10 @@ public class AnalysesController {
 
     @GetMapping
     @PreAuthorize(("hasAuthority('SCOPE_analyses:read')"))
-    public Mono<ResponseEntity<Object>> getAllAnalyses(@RequestParam Integer page, @RequestParam Integer size) {
-        return analysisService.getAllAnalyses(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(analyses -> Mono.just(ResponseEntity.ok(analyses)));
+    public Mono<ResponseEntity<Object>> getAllAnalyses(@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        if(page != null && size != null)
+            return analysisService.getAllAnalyses(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(analyses -> Mono.just(ResponseEntity.ok(analyses)));
+        return analysisService.getAllAnalyses().flatMap(analysisDTOS -> Mono.just(ResponseEntity.ok(analysisDTOS)));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)

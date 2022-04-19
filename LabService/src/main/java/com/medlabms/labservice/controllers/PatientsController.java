@@ -33,14 +33,16 @@ public class PatientsController {
 
     @GetMapping
     @PreAuthorize(("hasAuthority('SCOPE_patients:read')"))
-    public Mono<ResponseEntity<Object>> getAllPatients(@RequestParam Integer page, @RequestParam Integer size) {
-        return patientService.getAllPatients(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(patients -> Mono.just(ResponseEntity.ok(patients)));
+    public Mono<ResponseEntity<Object>> getAllPatients(@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        if(page != null && size != null)
+            return patientService.getAllPatients(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(patients -> Mono.just(ResponseEntity.ok(patients)));
+        return patientService.getAllPatients().flatMap(patients -> Mono.just(ResponseEntity.ok(patients)));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_patients:read')")
     public Mono<ResponseEntity<PatientDTO>> getPatient(@PathVariable String id) {
-        return patientService.getPatient(id)
+        return patientService.getPatient(Long.parseLong(id))
                 .flatMap(patientDTO -> Objects.nonNull(patientDTO) ?
                         Mono.just(ResponseEntity.ok(patientDTO)) : Mono.just(ResponseEntity.noContent().build()));
     }

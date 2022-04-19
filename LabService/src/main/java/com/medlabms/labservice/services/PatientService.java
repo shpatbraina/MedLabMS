@@ -1,18 +1,21 @@
 package com.medlabms.labservice.services;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.labservice.models.dtos.PatientDTO;
 import com.medlabms.labservice.models.entities.Patient;
 import com.medlabms.labservice.repositories.PatientRepository;
 import com.medlabms.labservice.services.mappers.PatientMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,6 +29,14 @@ public class PatientService {
         this.patientMapper = patientMapper;
     }
 
+    public Mono<List<PatientDTO>> getAllPatients() {
+        return patientRepository.findAllBy(PageRequest.ofSize(Integer.MAX_VALUE)
+                        .withSort(Sort.Direction.ASC, "id"))
+                .collectList()
+                .flatMap(patients -> Mono.just(patients.stream()
+                        .map(patientMapper::entityToDtoModel).collect(Collectors.toList())));
+    }
+
     public Mono<Page<PatientDTO>> getAllPatients(PageRequest pageRequest) {
         return patientRepository.findAllBy(pageRequest)
                 .flatMap(patient -> Mono.just(patientMapper.entityToDtoModel(patient)))
@@ -34,8 +45,8 @@ public class PatientService {
                 .flatMap(objects -> Mono.just(new PageImpl<>(objects.getT1(), pageRequest, objects.getT2())));
     }
 
-    public Mono<PatientDTO> getPatient(String id) {
-        return patientRepository.findById(Long.parseLong(id))
+    public Mono<PatientDTO> getPatient(Long id) {
+        return patientRepository.findById(id)
                 .flatMap(patient -> Mono.just(patientMapper.entityToDtoModel(patient)));
     }
 
