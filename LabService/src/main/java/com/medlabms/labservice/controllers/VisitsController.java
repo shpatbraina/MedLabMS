@@ -41,7 +41,7 @@ public class VisitsController
                                                      @RequestParam(required = false) String search) {
         if(page != null && size != null) {
             var pageRequest = PageRequest.of(page,size);
-            if(!sortBy.isEmpty() && Objects.nonNull(sortDesc)) {
+            if (Objects.nonNull(sortBy) && !sortBy.isBlank() && Objects.nonNull(sortDesc)) {
                 Sort.Direction sortDirection = sortDesc ? Sort.Direction.DESC : Sort.Direction.ASC;
                 pageRequest = pageRequest.withSort(sortDirection, sortBy);
             }

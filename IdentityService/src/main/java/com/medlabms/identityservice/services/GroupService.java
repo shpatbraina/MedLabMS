@@ -1,17 +1,5 @@
 package com.medlabms.identityservice.services;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.keycloak.representations.idm.GroupRepresentation;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-
 import com.medlabms.core.exceptions.ChildFoundException;
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.GroupDTO;
@@ -20,7 +8,20 @@ import com.medlabms.identityservice.repositories.GroupRepository;
 import com.medlabms.identityservice.services.mappers.GroupMapper;
 import com.medlabms.identityservice.services.mappers.RoleMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.representations.idm.GroupRepresentation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -38,12 +39,26 @@ public class GroupService {
         this.roleMapper = roleMapper;
     }
 
-    public Mono<Page<Group>> getAllGroups(PageRequest pageRequest) {
+    public Mono<Page<Group>> getAllGroups(PageRequest pageRequest, String filterBy, String search) {
 
-        return groupRepository.findAllBy(pageRequest)
+        return findBy(pageRequest, filterBy, search)
                 .collectList()
-                .zipWith(groupRepository.count())
+                .zipWith(countBy(filterBy, search))
                 .flatMap(objects -> Mono.just(new PageImpl<>(objects.getT1(), pageRequest, objects.getT2())));
+    }
+
+    private Flux<Group> findBy(PageRequest pageRequest, String filterBy, String search) {
+        if (Objects.nonNull(search) && !search.isBlank() && "name".equals(filterBy)) {
+                return groupRepository.findByNameContainingIgnoreCase(search, pageRequest);
+        }
+        return groupRepository.findAllBy(pageRequest);
+    }
+
+    private Mono<Long> countBy(String filterBy, String search) {
+        if (Objects.nonNull(search) && !search.isBlank() && "name".equals(filterBy)) {
+            return groupRepository.countByNameContainingIgnoreCase(search);
+        }
+        return groupRepository.count();
     }
 
     public Mono<List<Group>> getAllGroups() {

@@ -1,22 +1,21 @@
 package com.medlabms.identityservice.services;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import javax.ws.rs.core.Response;
-
+import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import javax.ws.rs.core.Response;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -86,6 +85,21 @@ public class KeycloakUserService {
         try {
             UserResource userResource = realmResource.users().get(id);
             userResource.executeActionsEmail("ui-client", "http://localhost:8080/", List.of("UPDATE_PASSWORD"));
+            return Mono.just(true);
+        } catch (Exception e) {
+            log.error("Failed to reset password for user in keycloak with exception!", e);
+            return Mono.just(false);
+        }
+    }
+
+    public Mono<Boolean> changePassword(String id, String newPassword) {
+        try {
+            UserResource userResource = realmResource.users().get(id);
+            CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
+            credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
+            credentialRepresentation.setTemporary(false);
+            credentialRepresentation.setValue(newPassword);
+            userResource.resetPassword(credentialRepresentation);
             return Mono.just(true);
         } catch (Exception e) {
             log.error("Failed to reset password for user in keycloak with exception!", e);

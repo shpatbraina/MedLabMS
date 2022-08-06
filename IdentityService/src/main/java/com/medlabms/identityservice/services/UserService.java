@@ -1,15 +1,5 @@
 package com.medlabms.identityservice.services;
 
-import java.util.Collections;
-
-import org.keycloak.representations.idm.UserRepresentation;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-
 import com.medlabms.core.exceptions.ChildFoundException;
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.UserDTO;
@@ -17,7 +7,22 @@ import com.medlabms.identityservice.models.entities.User;
 import com.medlabms.identityservice.repositories.UserRepository;
 import com.medlabms.identityservice.services.mappers.UserMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -35,9 +40,9 @@ public class UserService {
         this.userMapper = userMapper;
     }
 
-    public Mono<Page<UserDTO>> getAllUsers(PageRequest pageRequest) {
+    public Mono<Page<UserDTO>> getAllUsers(PageRequest pageRequest, String filterBy, String search) {
 
-        return userRepository.findAllBy(pageRequest)
+        return findBy(pageRequest, filterBy, search)
                 .flatMap(user -> groupService.getGroup(user.getGroupId())
                         .flatMap(groupDTO -> {
                             var userDTO = userMapper.entityToDtoModel(user);
@@ -45,10 +50,41 @@ public class UserService {
                             return Mono.just(userDTO);
                         }))
                 .collectList()
-                .zipWith(userRepository.count())
+                .zipWith(countBy(filterBy, search))
                 .flatMap(objects -> Mono.just(new PageImpl<>(objects.getT1(), pageRequest, objects.getT2())));
     }
 
+    private Flux<User> findBy(PageRequest pageRequest, String filterBy, String search) {
+        if (Objects.nonNull(search) && !search.isBlank()) {
+            return switch (filterBy) {
+                case "firstName" -> userRepository.findByFirstNameContainingIgnoreCase(search, pageRequest);
+                case "lastName" -> userRepository.findByLastNameContainingIgnoreCase(search, pageRequest);
+                case "email" -> userRepository.findByEmailContainingIgnoreCase(search, pageRequest);
+                case "username" -> userRepository.findByUsernameContainingIgnoreCase(search, pageRequest);
+                case "groupId" -> userRepository.findByGroupId(Long.parseLong(search), pageRequest);
+                default -> userRepository.findAllBy(pageRequest);
+            };
+        }
+        return userRepository.findAllBy(pageRequest);
+    }
+
+    private Mono<Long> countBy(String filterBy, String search) {
+        if (Objects.nonNull(search) && !search.isBlank()) {
+            return switch (filterBy) {
+                case "firstName" -> userRepository.countByFirstNameContainingIgnoreCase(search);
+                case "lastName" -> userRepository.countByLastNameContainingIgnoreCase(search);
+                case "email" -> userRepository.countByEmailContainingIgnoreCase(search);
+                case "username" -> userRepository.countByUsernameContainingIgnoreCase(search);
+                case "groupId" -> userRepository.countByGroupId(Long.parseLong(search));
+                default -> userRepository.count();
+            };
+        }
+        return userRepository.count();
+    }
+
+    public Mono<List<User>> getAllUsers() {
+        return userRepository.findAllBy(PageRequest.ofSize(Integer.MAX_VALUE).withSort(Sort.Direction.ASC, "id")).collectList();
+    }
     public Mono<UserDTO> getUser(String id) {
         return keycloakUserService.getUser(id)
                 .flatMap(userRepresentation -> Mono.just(userMapper.kcEntityToDtoModel(userRepresentation)));
@@ -116,5 +152,27 @@ public class UserService {
                                                 return Mono.just(ResponseEntity.badRequest().build());
                                             }
                                         }))));
+    }
+
+    public Mono<ResponseEntity<Object>> changePassword(Authentication authentication, String newPassword) {
+        String kcId = ((JwtAuthenticationToken) authentication).getTokenAttributes().get("sub").toString();
+        return keycloakUserService.changePassword(kcId, newPassword)
+                .flatMap(aBoolean -> {
+                    if (aBoolean)
+                        return Mono.just(ResponseEntity.ok(aBoolean));
+                    return Mono.just(ResponseEntity.badRequest().body(aBoolean));
+                });
+    }
+
+    public Mono<ResponseEntity<Object>> resetPassword(Long id) {
+        return userRepository.findById(id)
+                .map(User::getKcId)
+                .flatMap(keycloakId -> keycloakUserService.resetPassword(keycloakId))
+                .flatMap(aBoolean -> {
+                    if (aBoolean)
+                        return Mono.just(ResponseEntity.ok(aBoolean));
+                    return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
+                            .errorMessage("Failed to reset password for user with id ".concat(Long.toString(id))).build()));
+                });
     }
 }

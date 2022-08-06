@@ -1,13 +1,14 @@
 package com.medlabms.identityservice.models.dtos;
 
-import java.util.List;
-
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 public class SessionDTO {
 
 	private String name;
+	private boolean addSelf;
 	private boolean readGroups;
 	private boolean addGroups;
 	private boolean readUsers;
@@ -24,6 +25,7 @@ public class SessionDTO {
 	public SessionDTO(String name, List<String> permissions) {
 
 		this.name = name;
+		this.addSelf = permissions.contains("self:save");
 		this.readGroups = permissions.contains("groups:read");
 		this.addGroups = permissions.contains("groups:save");
 		this.readUsers = permissions.contains("users:read");

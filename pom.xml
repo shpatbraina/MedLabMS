@@ -20,5 +20,6 @@
         <module>GatewayService</module>
         <module>IdentityService</module>
         <module>LabService</module>
+        <module>AuditService</module>
     </modules>
 </project>

@@ -27,9 +27,20 @@ public class GroupController {
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_groups:read')")
-    public Mono<ResponseEntity<Object>> getAllGroups(@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
-        if(page != null && size != null)
-            return groupService.getAllGroups(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(groups -> Mono.just(ResponseEntity.ok(groups)));
+    public Mono<ResponseEntity<Object>> getAllGroups(@RequestParam(required = false) Integer page,
+                                                     @RequestParam(required = false) Integer size,
+                                                     @RequestParam(required = false) String sortBy,
+                                                     @RequestParam(required = false) Boolean sortDesc,
+                                                     @RequestParam(required = false) String filterBy,
+                                                     @RequestParam(required = false) String search) {
+        if(page != null && size != null) {
+            PageRequest pageRequest = PageRequest.of(page, size);
+            if (Objects.nonNull(sortBy) && !sortBy.isBlank() && Objects.nonNull(sortDesc)) {
+                Sort.Direction sortDirection = sortDesc ? Sort.Direction.DESC : Sort.Direction.ASC;
+                pageRequest = pageRequest.withSort(sortDirection, sortBy);
+            }
+            return groupService.getAllGroups(pageRequest, filterBy, search).flatMap(groups -> Mono.just(ResponseEntity.ok(groups)));
+        }
         return groupService.getAllGroups().flatMap(groups -> Mono.just(ResponseEntity.ok(groups)));
     }
 

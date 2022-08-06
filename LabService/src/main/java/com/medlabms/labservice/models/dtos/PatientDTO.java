@@ -13,7 +13,7 @@ public class PatientDTO {
     private String gender;
     private String bloodType;
     private char bloodTypeRh;
-    private Long personalId;
+    private String personalId;
     private String email;
     private String phone;
 

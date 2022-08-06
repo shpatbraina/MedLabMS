@@ -1,15 +1,5 @@
 package com.medlabms.labservice.services;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-
 import com.medlabms.core.exceptions.ChildFoundException;
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.labservice.models.dtos.AnalysesGroupDTO;
@@ -17,7 +7,18 @@ import com.medlabms.labservice.models.entities.AnalysesGroup;
 import com.medlabms.labservice.repositories.AnalysesGroupRepository;
 import com.medlabms.labservice.services.mappers.AnalysesGroupMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -33,18 +34,32 @@ public class AnalysesGroupService {
 
     public Mono<List<AnalysesGroupDTO>> getAllAnalysesGroups() {
         return analysesGroupRepository.findAllBy(PageRequest.ofSize(Integer.MAX_VALUE)
-                .withSort(Sort.Direction.ASC, "id"))
+                        .withSort(Sort.Direction.ASC, "id"))
                 .collectList()
                 .flatMap(analysesGroups -> Mono.just(analysesGroups.stream()
                         .map(analysesGroupMapper::entityToDtoModel).collect(Collectors.toList())));
     }
 
-    public Mono<Page<AnalysesGroupDTO>> getAllAnalysesGroups(PageRequest pageRequest) {
-        return analysesGroupRepository.findAllBy(pageRequest)
+    public Mono<Page<AnalysesGroupDTO>> getAllAnalysesGroups(PageRequest pageRequest, String filterBy, String search) {
+        return findBy(pageRequest, filterBy, search)
                 .flatMap(analysesGroup -> Mono.just(analysesGroupMapper.entityToDtoModel(analysesGroup)))
                 .collectList()
-                .zipWith(analysesGroupRepository.count())
+                .zipWith(countBy(filterBy, search))
                 .flatMap(objects -> Mono.just(new PageImpl<>(objects.getT1(), pageRequest, objects.getT2())));
+    }
+
+    private Flux<AnalysesGroup> findBy(PageRequest pageRequest, String filterBy, String search) {
+        if (Objects.nonNull(search) && !search.isBlank() && "name".equals(filterBy)) {
+            return analysesGroupRepository.findByNameContainingIgnoreCase(search, pageRequest);
+        }
+        return analysesGroupRepository.findAllBy(pageRequest);
+    }
+
+    private Mono<Long> countBy(String filterBy, String search) {
+        if (Objects.nonNull(search) && !search.isBlank() && "name".equals(filterBy)) {
+                return analysesGroupRepository.countByNameContainingIgnoreCase(search);
+        }
+        return analysesGroupRepository.count();
     }
 
     public Mono<AnalysesGroupDTO> getAnalysesGroup(Long id) {

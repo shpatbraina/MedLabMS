@@ -20,6 +20,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -66,25 +67,15 @@ public class VisitService {
     }
 
     private Flux<Visit> findBy(PageRequest pageRequest, String filterBy, String search) {
-        if (search != null) {
-            switch (filterBy) {
-                case "patientId":
-                    return visitRepository.findByPatientId(Long.parseLong(search), pageRequest);
-                default:
-                    return visitRepository.findAllBy(pageRequest);
-            }
+        if (Objects.nonNull(search) && !search.isBlank() && "patientId".equals(filterBy)) {
+            return visitRepository.findByPatientId(Long.parseLong(search), pageRequest);
         }
         return visitRepository.findAllBy(pageRequest);
     }
 
     private Mono<Long> countBy(String filterBy, String search) {
-        if (search != null) {
-            switch (filterBy) {
-                case "patientId":
-                    return visitRepository.countByPatientId(Long.parseLong(search));
-                default:
-                    return visitRepository.count();
-            }
+        if (Objects.nonNull(search) && !search.isBlank() && "patientId".equals(filterBy)) {
+            return visitRepository.countByPatientId(Long.parseLong(search));
         }
         return visitRepository.count();
     }

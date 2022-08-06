@@ -1,7 +1,7 @@
 package com.medlabms.labservice.controllers;
 
-import java.util.Objects;
-
+import com.medlabms.labservice.models.dtos.AnalysesGroupDTO;
+import com.medlabms.labservice.services.AnalysesGroupService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
@@ -16,10 +16,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.medlabms.labservice.models.dtos.AnalysesGroupDTO;
-import com.medlabms.labservice.services.AnalysesGroupService;
 import reactor.core.publisher.Mono;
+
+import java.util.Objects;
 
 @RestController
 @RequestMapping("analysesGroups")
@@ -33,9 +32,21 @@ public class AnalysesGroupsController {
 
     @GetMapping
     @PreAuthorize(("hasAuthority('SCOPE_analysesGroups:read')"))
-    public Mono<ResponseEntity<Object>> getAllAnalysesGroups(@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
-        if(page != null && size != null)
-            return analysesGroupService.getAllAnalysesGroups(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(analysesGroups -> Mono.just(ResponseEntity.ok(analysesGroups)));
+    public Mono<ResponseEntity<Object>> getAllAnalysesGroups(@RequestParam(required = false) Integer page,
+                                                             @RequestParam(required = false) Integer size,
+                                                             @RequestParam(required = false) String sortBy,
+                                                             @RequestParam(required = false) Boolean sortDesc,
+                                                             @RequestParam(required = false) String filterBy,
+                                                             @RequestParam(required = false) String search) {
+        if(page != null && size != null) {
+            var pageRequest = PageRequest.of(page, size);
+            if (Objects.nonNull(sortBy) && !sortBy.isBlank() && Objects.nonNull(sortDesc)) {
+                Sort.Direction sortDirection = sortDesc ? Sort.Direction.DESC : Sort.Direction.ASC;
+                pageRequest = pageRequest.withSort(sortDirection, sortBy);
+            }
+            return analysesGroupService.getAllAnalysesGroups(pageRequest, filterBy, search).flatMap(analysesGroups -> Mono.just(ResponseEntity.ok(analysesGroups)));
+
+        }
         return analysesGroupService.getAllAnalysesGroups().flatMap(groups -> Mono.just(ResponseEntity.ok(groups)));
     }
 

@@ -274,5 +274,17 @@
             </column>
         </createTable>
     </changeSet>
+    <changeSet author="ShpatBraina" id="20220806-01">
+        <createTable tableName="audits">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="audits_pkey"/>
+            </column>
+            <column name="type" type="VARCHAR(255)"/>
+            <column name="action" type="VARCHAR(255)"/>
+            <column name="description" type="VARCHAR(255)"/>
+            <column name="modified_by" type="VARCHAR(255)"/>
+            <column name="date" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
 
 </databaseChangeLog>

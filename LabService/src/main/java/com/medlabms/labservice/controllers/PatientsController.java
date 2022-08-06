@@ -1,7 +1,7 @@
 package com.medlabms.labservice.controllers;
 
-import java.util.Objects;
-
+import com.medlabms.labservice.models.dtos.PatientDTO;
+import com.medlabms.labservice.services.PatientService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
@@ -16,16 +16,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.medlabms.labservice.models.dtos.PatientDTO;
-import com.medlabms.labservice.services.PatientService;
 import reactor.core.publisher.Mono;
+
+import java.util.Objects;
 
 @RestController
 @RequestMapping("patients")
 public class PatientsController {
 
-    private PatientService patientService;
+    private final PatientService patientService;
 
     public PatientsController(PatientService patientService) {
         this.patientService = patientService;
@@ -33,9 +32,20 @@ public class PatientsController {
 
     @GetMapping
     @PreAuthorize(("hasAuthority('SCOPE_patients:read')"))
-    public Mono<ResponseEntity<Object>> getAllPatients(@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
-        if(page != null && size != null)
-            return patientService.getAllPatients(PageRequest.of(page,size).withSort(Sort.Direction.ASC, "id")).flatMap(patients -> Mono.just(ResponseEntity.ok(patients)));
+    public Mono<ResponseEntity<Object>> getAllPatients(@RequestParam(required = false) Integer page,
+                                                       @RequestParam(required = false) Integer size,
+                                                       @RequestParam(required = false) String sortBy,
+                                                       @RequestParam(required = false) Boolean sortDesc,
+                                                       @RequestParam(required = false) String filterBy,
+                                                       @RequestParam(required = false) String search) {
+        if(page != null && size != null) {
+            PageRequest pageRequest = PageRequest.of(page, size);
+            if (Objects.nonNull(sortBy) && !sortBy.isBlank() && Objects.nonNull(sortDesc)) {
+                Sort.Direction sortDirection = sortDesc ? Sort.Direction.DESC : Sort.Direction.ASC;
+                pageRequest = pageRequest.withSort(sortDirection, sortBy);
+            }
+            return patientService.getAllPatients(pageRequest, filterBy, search).flatMap(patients -> Mono.just(ResponseEntity.ok(patients)));
+        }
         return patientService.getAllPatients().flatMap(patients -> Mono.just(ResponseEntity.ok(patients)));
     }
 

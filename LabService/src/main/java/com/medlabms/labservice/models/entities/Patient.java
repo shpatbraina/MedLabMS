@@ -1,12 +1,11 @@
 package com.medlabms.labservice.models.entities;
 
-import java.time.LocalDate;
-
+import com.medlabms.core.models.entities.Model;
+import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import com.medlabms.core.models.entities.Model;
-import lombok.Data;
+import java.time.LocalDate;
 
 @Data
 @Table("patients")
@@ -21,7 +20,7 @@ public class Patient extends Model {
     private String gender;
     private String bloodType;
     private char bloodTypeRh;
-    private Long personalId;
+    private String personalId;
     private String email;
     private String phone;
 }

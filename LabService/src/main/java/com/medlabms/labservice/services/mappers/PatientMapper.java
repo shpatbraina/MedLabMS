@@ -7,7 +7,6 @@ import org.mapstruct.*;
 @Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PatientMapper {
 
-
     PatientDTO entityToDtoModel(Patient entity);
 
     Patient dtoModelToEntity(PatientDTO patientDTO);

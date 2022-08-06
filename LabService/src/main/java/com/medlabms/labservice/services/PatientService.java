@@ -12,9 +12,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -37,12 +39,36 @@ public class PatientService {
                         .map(patientMapper::entityToDtoModel).collect(Collectors.toList())));
     }
 
-    public Mono<Page<PatientDTO>> getAllPatients(PageRequest pageRequest) {
-        return patientRepository.findAllBy(pageRequest)
+    public Mono<Page<PatientDTO>> getAllPatients(PageRequest pageRequest, String filterBy, String search) {
+        return findBy(pageRequest, filterBy, search)
                 .flatMap(patient -> Mono.just(patientMapper.entityToDtoModel(patient)))
                 .collectList()
-                .zipWith(patientRepository.count())
+                .zipWith(countBy(filterBy, search))
                 .flatMap(objects -> Mono.just(new PageImpl<>(objects.getT1(), pageRequest, objects.getT2())));
+    }
+
+    private Flux<Patient> findBy(PageRequest pageRequest, String filterBy, String search) {
+        if (Objects.nonNull(search) && !search.isBlank()) {
+            return switch (filterBy) {
+                case "firstName" -> patientRepository.findByFirstNameContainingIgnoreCase(search, pageRequest);
+                case "lastName" -> patientRepository.findByLastNameContainingIgnoreCase(search, pageRequest);
+                case "personalId" -> patientRepository.findByPersonalIdContainingIgnoreCase(search, pageRequest);
+                default -> patientRepository.findAllBy(pageRequest);
+            };
+        }
+        return patientRepository.findAllBy(pageRequest);
+    }
+
+    private Mono<Long> countBy(String filterBy, String search) {
+        if (Objects.nonNull(search) && !search.isBlank()) {
+            return switch (filterBy) {
+                case "firstName" -> patientRepository.countByFirstNameContainingIgnoreCase(search);
+                case "lastName" -> patientRepository.countByLastNameContainingIgnoreCase(search);
+                case "personalId" -> patientRepository.countByPersonalIdContainingIgnoreCase(search);
+                default -> patientRepository.count();
+            };
+        }
+        return patientRepository.count();
     }
 
     public Mono<PatientDTO> getPatient(Long id) {

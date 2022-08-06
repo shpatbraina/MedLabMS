@@ -11,5 +11,8 @@ import reactor.core.publisher.Mono;
 public interface GroupRepository extends R2dbcRepository<Group, Long> {
 
     Flux<Group> findAllBy(Pageable pageable);
+    Flux<Group> findByNameContainingIgnoreCase(String name, Pageable pageable);
     Mono<Group> findByKcId(String keycloakId);
+
+    Mono<Long> countByNameContainingIgnoreCase(String name);
 }
