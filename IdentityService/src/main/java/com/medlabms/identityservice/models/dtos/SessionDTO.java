@@ -21,6 +21,7 @@ public class SessionDTO {
 	private boolean addAnalyses;
 	private boolean readVisits;
 	private boolean addVisits;
+	private boolean readAudits;
 
 	public SessionDTO(String name, List<String> permissions) {
 
@@ -38,6 +39,7 @@ public class SessionDTO {
 		this.addAnalysesGroups = permissions.contains("analysesGroups:save");
 		this.readVisits = permissions.contains("visits:read");
 		this.addVisits = permissions.contains("visits:save");
+		this.readAudits = permissions.contains("audits:read");
 	}
 
 }

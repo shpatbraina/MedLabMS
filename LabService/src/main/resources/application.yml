@@ -1,6 +1,21 @@
 spring:
   application:
     name: lab-service
+  kafka:
+    bootstrap-servers: localhost:29092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      max:
+        request:
+          size: 1000
+      linger:
+        ms: 0
+      spring:
+        json:
+          trusted:
+            packages: '*'
   r2dbc:
     url: r2dbc:postgres://postgres@localhost:5432/medlabms
     username: postgres
@@ -18,3 +33,5 @@ eureka:
       defaultZone: http://localhost:8761/eureka
   instance:
     preferIpAddress: true
+AUDIT_PRODUCER_DTO_TOPIC:
+  medlabms.audit

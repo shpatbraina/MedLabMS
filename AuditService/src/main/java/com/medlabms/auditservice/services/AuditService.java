@@ -4,11 +4,14 @@ import com.medlabms.auditservice.models.dtos.AuditDTO;
 import com.medlabms.auditservice.models.entities.Audit;
 import com.medlabms.auditservice.repositories.AuditRepository;
 import com.medlabms.auditservice.services.mappers.AuditMapper;
+import com.medlabms.core.models.dtos.AuditMessageDTO;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -22,10 +25,14 @@ import java.util.stream.Collectors;
 public class AuditService {
 
     private final AuditRepository auditRepository;
+
+    private final ReactiveKafkaConsumerTemplate<String, AuditMessageDTO> auditConsumerTemplate;
     private final AuditMapper auditMapper;
 
-    public AuditService(AuditRepository auditRepository, AuditMapper auditMapper) {
+    public AuditService(AuditRepository auditRepository, ReactiveKafkaConsumerTemplate<String, AuditMessageDTO> auditConsumerTemplate,
+                        AuditMapper auditMapper) {
         this.auditRepository = auditRepository;
+        this.auditConsumerTemplate = auditConsumerTemplate;
         this.auditMapper = auditMapper;
     }
 
@@ -69,6 +76,21 @@ public class AuditService {
             };
         }
         return auditRepository.count();
+    }
+
+    public Flux<AuditMessageDTO> consumeAuditConsumerDTO() {
+        return auditConsumerTemplate
+                .receiveAutoAck()
+                // .delayElements(Duration.ofSeconds(2L)) // BACKPRESSURE
+                .doOnNext(consumerRecord -> log.info("received key={}, value={} from topic={}, offset={}",
+                        consumerRecord.key(),
+                        consumerRecord.value(),
+                        consumerRecord.topic(),
+                        consumerRecord.offset())
+                )
+                .map(ConsumerRecord::value)
+                .doOnNext(auditMessageDTO -> log.info("successfully consumed {}={}", AuditMessageDTO.class.getSimpleName(), auditMessageDTO))
+                .doOnError(throwable -> log.error("something bad happened while consuming : {}", throwable.getMessage()));
     }
 
 }

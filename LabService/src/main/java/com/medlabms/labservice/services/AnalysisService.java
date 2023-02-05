@@ -1,6 +1,7 @@
 package com.medlabms.labservice.services;
 
 import com.medlabms.core.exceptions.ChildFoundException;
+import com.medlabms.core.models.dtos.AuditMessageDTO;
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.labservice.models.dtos.AnalysisDTO;
 import com.medlabms.labservice.models.entities.Analysis;
@@ -27,11 +28,14 @@ public class AnalysisService {
     private AnalysisRepository analysisRepository;
     private AnalysesGroupService analysesGroupService;
     private AnalysisMapper analysisMapper;
+    private AuditProducerService auditProducerService;
 
-    public AnalysisService(AnalysisRepository analysisRepository, AnalysesGroupService analysesGroupService, AnalysisMapper analysisMapper) {
+    public AnalysisService(AnalysisRepository analysisRepository, AnalysesGroupService analysesGroupService,
+                           AnalysisMapper analysisMapper, AuditProducerService auditProducerService) {
         this.analysisRepository = analysisRepository;
         this.analysesGroupService = analysesGroupService;
         this.analysisMapper = analysisMapper;
+        this.auditProducerService = auditProducerService;
     }
 
     public Mono<List<AnalysisDTO>> getAllAnalyses() {
@@ -88,7 +92,8 @@ public class AnalysisService {
                 .onErrorReturn(new Analysis())
                 .flatMap(analysis -> {
                     if (analysis.getId() != null)
-                        return Mono.just(ResponseEntity.ok(analysisMapper.entityToDtoModel(analysis)));
+                        return auditProducerService.audit(AuditMessageDTO.builder().action("Test").type("test").build())
+                                .map(data -> ResponseEntity.ok(analysisMapper.entityToDtoModel(analysis)));
                     return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                             .errorMessage("Failed to create analysis").build()));
                 });

@@ -1,14 +1,18 @@
-package com.medlabms.auditservice.models.dtos;
+package com.medlabms.core.models.dtos;
 
+import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
+@Builder
 @Data
-public class AuditDTO {
+public class AuditMessageDTO {
 
     private Long id;
     private String type;
     private String action;
     private String description;
     private String modifiedBy;
-    private String date;
+    private LocalDateTime date;
 }
