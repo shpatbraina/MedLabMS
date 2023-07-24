@@ -1,0 +1,6 @@
+applicationType: default
+defaultPackage: com.medlabms
+testFramework: junit
+sourceLanguage: java
+buildTool: maven
+features: [ annotation-api, app-name, consul, discovery-consul, http-client, jackson-databind, java, java-application, junit, kafka, logback, maven, netty-server, readme, security-annotations, security-oauth2, shade, test-resources, yaml ]
