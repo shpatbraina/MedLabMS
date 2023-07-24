@@ -1,0 +1,69 @@
+version: "3.9"
+services:
+  mailcatcher:
+    image: dockage/mailcatcher:latest
+    ports:
+     - "1025:1025"
+     - "1080:1080"
+  zookeeper:
+    image: wurstmeister/zookeeper
+    hostname: zookeeper
+    ports:
+      - "2181:2181"
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  postgres:
+    image: postgres:13.4
+    volumes:
+        - ./PostgreSQL/13/data:/var/lib/postgresql/data
+        - ./create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/create-multiple-postgresql-databases.sh
+        - ./dbs/medlabms.sql:/medlabms.sql
+        - ./dbs/keycloak.sql:/keycloak.sql
+    ports:
+        - 5432:5432
+    environment:
+        POSTGRES_MULTIPLE_DATABASES: "medlabms,medlabms : keycloak,keycloak"
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+  keycloak:
+    image: sleighzy/keycloak:15.0.2-arm64
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres
+      DB_DATABASE: keycloak
+      DB_USER: postgres
+      DB_SCHEMA: public
+      DB_PASSWORD: postgres
+      KEYCLOAK_LOGLEVEL: DEBUG
+      ROOT_LOGLEVEL: DEBUG
+    ports:
+        - 8180:8080
+    depends_on:
+        - postgres
+        - mailcatcher
+  consul:
+    image: consul:latest
+    command: consul agent -dev -client 0.0.0.0
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    container_name: kafka-ui
+    ports:
+      - "9200:8080"
+    restart: always
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
