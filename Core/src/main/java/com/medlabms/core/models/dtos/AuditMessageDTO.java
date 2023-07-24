@@ -12,7 +12,7 @@ public class AuditMessageDTO {
     private Long id;
     private String type;
     private String action;
-    private String description;
+    private String resourceName;
     private String modifiedBy;
     private LocalDateTime date;
 }

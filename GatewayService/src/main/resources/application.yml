@@ -6,11 +6,21 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8180/auth/realms/MedLabMS
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        healthCheckPath: ${management.server.servlet.context-path}/actuator/health
+        healthCheckInterval: 15s
+        heartbeat:
+          enabled: true
+          ttl: 10s
 server:
   port: 8081
-eureka:
-  client:
-    serviceUrl:
-      defaultZone: http://localhost:8761/eureka
-  instance:
-    preferIpAddress: true
+#eureka:
+#  client:
+#    serviceUrl:
+#      defaultZone: http://localhost:8761/eureka
+#  instance:
+#    preferIpAddress: true

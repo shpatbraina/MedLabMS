@@ -1,6 +1,7 @@
 package com.medlabms.labservice.services;
 
 import com.medlabms.core.exceptions.ChildFoundException;
+import com.medlabms.core.models.dtos.AuditMessageDTO;
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.labservice.models.dtos.AnalysesGroupDTO;
 import com.medlabms.labservice.models.entities.AnalysesGroup;
@@ -24,10 +25,12 @@ import java.util.stream.Collectors;
 @Service
 public class AnalysesGroupService {
 
+    private AuditProducerService auditProducerService;
     private AnalysesGroupRepository analysesGroupRepository;
     private AnalysesGroupMapper analysesGroupMapper;
 
-    public AnalysesGroupService(AnalysesGroupRepository analysesGroupRepository, AnalysesGroupMapper analysesGroupMapper) {
+    public AnalysesGroupService(AuditProducerService auditProducerService, AnalysesGroupRepository analysesGroupRepository, AnalysesGroupMapper analysesGroupMapper) {
+        this.auditProducerService = auditProducerService;
         this.analysesGroupRepository = analysesGroupRepository;
         this.analysesGroupMapper = analysesGroupMapper;
     }
@@ -57,7 +60,7 @@ public class AnalysesGroupService {
 
     private Mono<Long> countBy(String filterBy, String search) {
         if (Objects.nonNull(search) && !search.isBlank() && "name".equals(filterBy)) {
-                return analysesGroupRepository.countByNameContainingIgnoreCase(search);
+            return analysesGroupRepository.countByNameContainingIgnoreCase(search);
         }
         return analysesGroupRepository.count();
     }
@@ -73,7 +76,8 @@ public class AnalysesGroupService {
                 .onErrorReturn(new AnalysesGroup())
                 .flatMap(analysesGroup -> {
                     if (analysesGroup.getId() != null)
-                        return Mono.just(ResponseEntity.ok(analysesGroupMapper.entityToDtoModel(analysesGroup)));
+                        return auditProducerService.audit(AuditMessageDTO.builder().resourceName(analysesGroupDTO.getName()).action("Create").type("AnalysesGroup").build())
+                                .then(Mono.just(ResponseEntity.ok(analysesGroupMapper.entityToDtoModel(analysesGroup))));
                     return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                             .errorMessage("Failed to create analyses group").build()));
                 });
@@ -87,7 +91,8 @@ public class AnalysesGroupService {
                             .onErrorReturn(new AnalysesGroup())
                             .flatMap(analysesGroup1 -> {
                                 if (analysesGroup1.getId() != null)
-                                    return Mono.just(ResponseEntity.ok(analysesGroupMapper.entityToDtoModel(analysesGroup1)));
+                                    return auditProducerService.audit(AuditMessageDTO.builder().resourceName(analysesGroupDTO.getName()).action("Update").type("AnalysesGroup").build())
+                                            .then(Mono.just(ResponseEntity.ok(analysesGroupMapper.entityToDtoModel(analysesGroup1))));
                                 return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                                         .errorMessage("Failed to update analyses group").build()));
                             });
@@ -96,7 +101,8 @@ public class AnalysesGroupService {
 
     public Mono<ResponseEntity<Boolean>> deleteAnalysesGroup(Long id) {
         return analysesGroupRepository.deleteById(id)
-                .flatMap(unused -> Mono.just(ResponseEntity.ok(true)))
+                .then(auditProducerService.audit(AuditMessageDTO.builder().resourceName(id.toString()).action("Delete").type("AnalysesGroup").build())
+                        .map(unused -> ResponseEntity.ok(true)))
                 .onErrorResume(throwable -> {
                     throw new ChildFoundException();
                 });

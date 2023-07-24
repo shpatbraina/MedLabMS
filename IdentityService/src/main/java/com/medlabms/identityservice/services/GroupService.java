@@ -1,6 +1,7 @@
 package com.medlabms.identityservice.services;
 
 import com.medlabms.core.exceptions.ChildFoundException;
+import com.medlabms.core.models.dtos.AuditMessageDTO;
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.GroupDTO;
 import com.medlabms.identityservice.models.entities.Group;
@@ -28,12 +29,14 @@ import java.util.stream.Collectors;
 public class GroupService {
 
     private KeycloakGroupService keycloakGroupService;
+    private AuditProducerService auditProducerService;
     private GroupRepository groupRepository;
     private GroupMapper groupMapper;
     private RoleMapper roleMapper;
 
-    public GroupService(KeycloakGroupService keycloakGroupService, GroupRepository groupRepository, GroupMapper groupMapper, RoleMapper roleMapper) {
+    public GroupService(KeycloakGroupService keycloakGroupService, AuditProducerService auditProducerService, GroupRepository groupRepository, GroupMapper groupMapper, RoleMapper roleMapper) {
         this.keycloakGroupService = keycloakGroupService;
+        this.auditProducerService = auditProducerService;
         this.groupRepository = groupRepository;
         this.groupMapper = groupMapper;
         this.roleMapper = roleMapper;
@@ -85,7 +88,9 @@ public class GroupService {
                                 .zipWhen(groupRepresentation1 -> groupRepository
                                         .save(groupMapper.kcEntityToEntity(groupRepresentation1))
                                         .doOnError(throwable -> log.error(throwable.getMessage())))
-                                .flatMap(objects -> Mono.just(ResponseEntity.ok(groupMapper.entityToDtoModel(objects.getT2()))));
+                                .flatMap(objects ->
+                                    auditProducerService.audit(AuditMessageDTO.builder().resourceName(groupDTO.getName()).action("Create").type("Group").build())
+                                            .then(Mono.just(ResponseEntity.ok(groupMapper.entityToDtoModel(objects.getT2())))));
                     } else {
                         return Mono.just(ResponseEntity.badRequest().body(response.readEntity(String.class)));
                     }
@@ -103,7 +108,8 @@ public class GroupService {
                                 group1.setId(group.getId());
                                 groupMapper.updateGroup(group1, group);
                                 return groupRepository.save(group)
-                                        .flatMap(group2 -> Mono.just(ResponseEntity.ok(groupMapper.entityToDtoModel(group2))));
+                                        .flatMap(group2 -> auditProducerService.audit(AuditMessageDTO.builder().resourceName(groupDTO.getName()).action("Update").type("Group").build())
+                                                .then(Mono.just(ResponseEntity.ok(groupMapper.entityToDtoModel(group2)))));
                             } else {
                                 return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(response.getEntity().toString()).build()));
                             }
@@ -120,7 +126,8 @@ public class GroupService {
                                 keycloakGroupService.deleteGroup(group.getKcId())
                                         .flatMap(aBoolean -> {
                                             if (aBoolean) {
-                                                return Mono.just(ResponseEntity.ok(aBoolean));
+                                                return auditProducerService.audit(AuditMessageDTO.builder().resourceName(group.getName()).action("Delete").type("Group").build())
+                                                        .then(Mono.just(ResponseEntity.ok(aBoolean)));
                                             } else {
                                                 return Mono.just(ResponseEntity.badRequest().build());
                                             }

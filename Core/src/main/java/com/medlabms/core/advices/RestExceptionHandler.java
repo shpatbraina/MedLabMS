@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 public class RestExceptionHandler {
 
     @ExceptionHandler(value = {ChildFoundException.class})
-    protected ResponseEntity<Object> handleMissingUserGroupHeaders(Exception ex) {
+    protected ResponseEntity<Object> handleChildFoundException(Exception ex) {
         log.error(ex.getLocalizedMessage());
         return ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(ex.getMessage()).build());
     }

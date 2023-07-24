@@ -1,5 +1,7 @@
 package com.medlabms.labservice.services;
 
+import com.medlabms.core.exceptions.ChildFoundException;
+import com.medlabms.core.models.dtos.AuditMessageDTO;
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.labservice.models.dtos.PatientDTO;
 import com.medlabms.labservice.models.entities.Patient;
@@ -23,10 +25,12 @@ import java.util.stream.Collectors;
 @Service
 public class PatientService {
 
+    private AuditProducerService auditProducerService;
     private PatientRepository patientRepository;
     private PatientMapper patientMapper;
 
-    public PatientService(PatientRepository patientRepository, PatientMapper patientMapper) {
+    public PatientService(AuditProducerService auditProducerService, PatientRepository patientRepository, PatientMapper patientMapper) {
+        this.auditProducerService = auditProducerService;
         this.patientRepository = patientRepository;
         this.patientMapper = patientMapper;
     }
@@ -82,7 +86,8 @@ public class PatientService {
                 .onErrorReturn(new Patient())
                 .flatMap(patient -> {
                     if (patient.getId() != null)
-                        return Mono.just(ResponseEntity.ok(patientMapper.entityToDtoModel(patient)));
+                        return auditProducerService.audit(AuditMessageDTO.builder().resourceName(patientDTO.getFullName()).action("Create").type("Patient").build())
+                                .then(Mono.just(ResponseEntity.ok(patientMapper.entityToDtoModel(patient))));
                     return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                             .errorMessage("Failed to create patient").build()));
                 });
@@ -96,7 +101,8 @@ public class PatientService {
                             .onErrorReturn(new Patient())
                             .flatMap(patient1 -> {
                                 if (patient1.getId() != null)
-                                    return Mono.just(ResponseEntity.ok(patientMapper.entityToDtoModel(patient1)));
+                                    return auditProducerService.audit(AuditMessageDTO.builder().resourceName(patientDTO.getFullName()).action("Update").type("Patient").build())
+                                            .then(Mono.just(ResponseEntity.ok(patientMapper.entityToDtoModel(patient1))));
                                 return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                                         .errorMessage("Failed to update patient").build()));
                             });
@@ -105,7 +111,10 @@ public class PatientService {
 
     public Mono<ResponseEntity<Boolean>> deletePatient(Long id) {
         return patientRepository.deleteById(id)
-                .flatMap(unused -> Mono.just(ResponseEntity.ok(true)))
-                .onErrorReturn(ResponseEntity.badRequest().body(false));
+                .then(auditProducerService.audit(AuditMessageDTO.builder().resourceName(id.toString()).action("Delete").type("Patient").build())
+                        .map(unused1 -> ResponseEntity.ok(true)))
+                .onErrorResume(throwable -> {
+                    throw new ChildFoundException();
+                });
     }
 }

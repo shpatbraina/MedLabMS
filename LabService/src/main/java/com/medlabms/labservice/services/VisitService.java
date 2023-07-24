@@ -1,6 +1,7 @@
 package com.medlabms.labservice.services;
 
 import com.medlabms.core.exceptions.ChildFoundException;
+import com.medlabms.core.models.dtos.AuditMessageDTO;
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.labservice.models.dtos.VisitAnalysisDTO;
 import com.medlabms.labservice.models.dtos.VisitDTO;
@@ -30,18 +31,18 @@ public class VisitService {
 
     private VisitRepository visitRepository;
     private PatientService patientService;
+    private AuditProducerService auditProducerService;
     private VisitAnalysesRepository visitAnalysesRepository;
     private VisitMapper visitMapper;
-    private R2dbcEntityTemplate template;
-
 
     public VisitService(VisitRepository visitRepository, PatientService patientService,
-                        VisitAnalysesRepository visitAnalysesRepository, VisitMapper visitMapper, R2dbcEntityTemplate template) {
+                        AuditProducerService auditProducerService, VisitAnalysesRepository visitAnalysesRepository,
+                        VisitMapper visitMapper) {
         this.visitRepository = visitRepository;
         this.patientService = patientService;
+        this.auditProducerService = auditProducerService;
         this.visitAnalysesRepository = visitAnalysesRepository;
         this.visitMapper = visitMapper;
-        this.template = template;
 
     }
 
@@ -91,7 +92,8 @@ public class VisitService {
                 .onErrorReturn(new Visit())
                 .flatMap(visit -> {
                     if (visit.getId() != null)
-                        return Mono.just(ResponseEntity.ok(visitMapper.entityToDtoModel(visit)));
+                        return auditProducerService.audit(AuditMessageDTO.builder().resourceName(visit.getId().toString()).action("Create").type("Visit").build())
+                                .then(Mono.just(ResponseEntity.ok(visitMapper.entityToDtoModel(visit))));
                     return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                             .errorMessage("Failed to create visit").build()));
                 });
@@ -105,7 +107,8 @@ public class VisitService {
                             .onErrorReturn(new Visit())
                             .flatMap(visit1 -> {
                                 if (visit1.getId() != null)
-                                    return Mono.just(ResponseEntity.ok(visitMapper.entityToDtoModel(visit1)));
+                                    return auditProducerService.audit(AuditMessageDTO.builder().resourceName(visit1.getId().toString()).action("Update").type("Visit").build())
+                                            .then(Mono.just(ResponseEntity.ok(visitMapper.entityToDtoModel(visit1))));
                                 return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                                         .errorMessage("Failed to update analysis").build()));
                             });
@@ -115,7 +118,8 @@ public class VisitService {
     public Mono<ResponseEntity<Boolean>> deleteVisit(Long id) {
         return visitAnalysesRepository.deleteByVisitId(id)
                 .then(visitRepository.deleteById(id)
-                        .flatMap(unused -> Mono.just(ResponseEntity.ok(true)))
+                        .then(auditProducerService.audit(AuditMessageDTO.builder().resourceName(id.toString()).action("Delete").type("Visit").build())
+                                .map(unused1 -> ResponseEntity.ok(true)))
                         .onErrorResume(throwable -> {
                             throw new ChildFoundException();
                         }));

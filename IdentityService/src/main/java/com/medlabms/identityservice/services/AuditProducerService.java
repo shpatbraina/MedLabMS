@@ -1,4 +1,4 @@
-package com.medlabms.labservice.services;
+package com.medlabms.identityservice.services;
 
 import com.medlabms.core.models.dtos.AuditMessageDTO;
 import lombok.extern.slf4j.Slf4j;

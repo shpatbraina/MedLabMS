@@ -23,7 +23,7 @@ public class SessionDTO {
 	private boolean addVisits;
 	private boolean readAudits;
 
-	public SessionDTO(String name, List<String> permissions) {
+	public SessionDTO(String name, List<?> permissions) {
 
 		this.name = name;
 		this.addSelf = permissions.contains("self:save");

@@ -1,6 +1,7 @@
 package com.medlabms.identityservice.services;
 
 import com.medlabms.core.exceptions.ChildFoundException;
+import com.medlabms.core.models.dtos.AuditMessageDTO;
 import com.medlabms.core.models.dtos.ErrorDTO;
 import com.medlabms.identityservice.models.dtos.UserDTO;
 import com.medlabms.identityservice.models.entities.User;
@@ -31,12 +32,14 @@ public class UserService {
     private UserRepository userRepository;
     private KeycloakUserService keycloakUserService;
     private GroupService groupService;
+    private AuditProducerService auditProducerService;
     private UserMapper userMapper;
 
-    public UserService(UserRepository userRepository, KeycloakUserService keycloakUserService, GroupService groupService, UserMapper userMapper) {
+    public UserService(UserRepository userRepository, KeycloakUserService keycloakUserService, GroupService groupService, AuditProducerService auditProducerService, UserMapper userMapper) {
         this.userRepository = userRepository;
         this.keycloakUserService = keycloakUserService;
         this.groupService = groupService;
+        this.auditProducerService = auditProducerService;
         this.userMapper = userMapper;
     }
 
@@ -107,7 +110,8 @@ public class UserService {
                                                 .doOnError(throwable -> log.error(throwable.getMessage()));
                                     })
                                     .flatMap(objects -> Mono.just(objects.getT2()))
-                                    .map(user -> ResponseEntity.ok(userMapper.entityToDtoModel(user)));
+                                    .flatMap(user -> auditProducerService.audit(AuditMessageDTO.builder().resourceName(userDTO.getFirstName().concat(" ").concat(userDTO.getLastName())).action("Create").type("User").build())
+                                            .then(Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user)))));
                         } else {
                             return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(response.readEntity(String.class)).build()));
                         }
@@ -128,7 +132,8 @@ public class UserService {
                                     user1.setGroupId(userDTO.getGroupId());
                                     userMapper.updateUser(user1, user);
                                     return userRepository.save(user)
-                                            .flatMap(user2 -> Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user2))));
+                                            .flatMap(user2 -> auditProducerService.audit(AuditMessageDTO.builder().resourceName(userDTO.getFirstName().concat(" ").concat(userDTO.getLastName())).action("Update").type("User").build())
+                                                    .then(Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user2)))));
                                 } else {
                                     return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                                             .errorMessage(response.getEntity().toString()).build()));
@@ -147,7 +152,8 @@ public class UserService {
                                 keycloakUserService.deleteUser(user.getKcId())
                                         .flatMap(aBoolean -> {
                                             if (aBoolean) {
-                                                return Mono.just(ResponseEntity.ok(aBoolean));
+                                                return auditProducerService.audit(AuditMessageDTO.builder().resourceName(user.getFirstName().concat(" ").concat(user.getLastName())).action("Delete").type("User").build())
+                                                        .then(Mono.just(ResponseEntity.ok(aBoolean)));
                                             } else {
                                                 return Mono.just(ResponseEntity.badRequest().build());
                                             }

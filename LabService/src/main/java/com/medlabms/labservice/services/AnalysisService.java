@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -92,7 +93,7 @@ public class AnalysisService {
                 .onErrorReturn(new Analysis())
                 .flatMap(analysis -> {
                     if (analysis.getId() != null)
-                        return auditProducerService.audit(AuditMessageDTO.builder().action("Test").type("test").build())
+                        return auditProducerService.audit(AuditMessageDTO.builder().resourceName(analysisDTO.getName()).action("Create").type("Analyse").build())
                                 .map(data -> ResponseEntity.ok(analysisMapper.entityToDtoModel(analysis)));
                     return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                             .errorMessage("Failed to create analysis").build()));
@@ -107,7 +108,8 @@ public class AnalysisService {
                             .onErrorReturn(new Analysis())
                             .flatMap(analysis1 -> {
                                 if (analysis1.getId() != null)
-                                    return Mono.just(ResponseEntity.ok(analysisMapper.entityToDtoModel(analysis1)));
+                                    return auditProducerService.audit(AuditMessageDTO.builder().resourceName(analysisDTO.getName()).action("Update").type("Analyse").build())
+                                            .map(data -> ResponseEntity.ok(analysisMapper.entityToDtoModel(analysis1)));
                                 return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
                                         .errorMessage("Failed to update analysis").build()));
                             });
@@ -116,7 +118,9 @@ public class AnalysisService {
 
     public Mono<ResponseEntity<Boolean>> deleteAnalysis(Long id) {
         return analysisRepository.deleteById(id)
-                .flatMap(unused -> Mono.just(ResponseEntity.ok(true)))
+                .then(auditProducerService.audit(
+                                AuditMessageDTO.builder().resourceName(id.toString()).action("Delete").type("Analyse").build())
+                        .map(unused1 -> ResponseEntity.ok(true)))
                 .onErrorResume(throwable -> {
                     throw new ChildFoundException();
                 });
