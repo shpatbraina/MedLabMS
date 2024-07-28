@@ -84,21 +84,4 @@ public class VisitAnalysesService {
         return ResponseEntity.ok(total);
     }
 
-//    public Mono<ResponseEntity<Object>> updateVisitAnalysis(Long visitId, List<VisitAnalysisDTO> visitAnalysisDTOs) {
-//        return Flux.fromStream(visitAnalysisDTOs.stream().map(visitAnalysesMapper::dtoModelToEntity))
-//                .concatMap(visitAnalysis ->
-//                        visitAnalysesRepository.findByVisitIdAndAnalysisId(visitAnalysis.getVisitId(), visitAnalysis.getAnalysisId())
-//                                .flatMap(dbVisitAnalysis -> {
-//                                    visitAnalysesMapper.updateVisitAnalyses(visitAnalysis, dbVisitAnalysis);
-//                                    return visitAnalysesRepository.save(dbVisitAnalysis);
-//                                })
-//                                .switchIfEmpty(visitAnalysesRepository.save(visitAnalysis)))
-//                .then(Mono.defer(() -> visitAnalysesRepository.findAllByVisitId(visitId).concatMap(dbVisitAnalysis ->
-//                                Mono.just(visitAnalysisDTOs.stream()
-//                                                .noneMatch(visitAnalysisDTO -> Objects.equals(visitAnalysisDTO.getVisitId(), dbVisitAnalysis.getVisitId())
-//                                                        && Objects.equals(visitAnalysisDTO.getAnalysisId(), dbVisitAnalysis.getAnalysisId())))
-//                                        .flatMap(aBoolean -> aBoolean ? visitAnalysesRepository.delete(dbVisitAnalysis).flatMap(unused -> Mono.just(true)) : Mono.just(aBoolean)))
-//                        .then(visitService.calculateTotal(visitId, visitAnalysisDTOs))
-//                        .flatMap(aDouble -> Mono.just(ResponseEntity.ok(aDouble)))));
-//    }
 }
