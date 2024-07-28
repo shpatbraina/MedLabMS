@@ -1,55 +1,50 @@
-micronaut:
+spring:
   application:
     name: audit-service
-  server:
-    port: 8766
-  caches:
-    discovery-client:
-      enabled: false
-  security:
-    authentication: bearer
-    token:
-      roles-name: 'roles'
-      jwt:
-        enabled: true
-        signatures:
-          jwks:
-            keycloak:
-              url: 'http://localhost:8180/auth/realms/MedLabMS/protocol/openid-connect/certs'
-netty:
-  default:
-    allocator:
-      max-order: 3
-consul:
-  client:
-    registration:
-      enabled: true
-    defaultZone: "${CONSUL_HOST:localhost}:${CONSUL_PORT:8500}"
-kafka:
-  bootstrap:
-    servers: localhost:29092
-  consumer:
-    group:
-      id: audit-service
-    key:
-      deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    value:
-      deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    auto:
-      offset:
-        reset: earliest
-jpa:
-  default:
-    reactive: true
-    entity-scan:
-      packages:
-        - 'com.medlabms.models.entities'
+  kafka:
+    bootstrap-servers: localhost:29092
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      group-id: audit-service
+      auto-offset-reset: earliest
+    properties:
+      max:
+        request:
+          size: 1000
+      linger:
+        ms: 0
+      spring:
+        json:
+          trusted:
+            packages: '*'
+  jpa:
     properties:
       hibernate:
-        show-sql: true
-        hbm2ddl:
-          auto: update
-        connection:
-          url: jdbc:postgresql://localhost:5432/medlabms
-          username: postgres
-          password: postgres
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  datasource:
+    url: jdbc:postgresql://localhost:5432/medlabms
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/MedLabMS
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        healthCheckPath: ${management.server.servlet.context-path}/actuator/health
+        healthCheckInterval: 15s
+        heartbeat:
+          enabled: true
+          ttl: 10s
+server:
+  port: 8766
+  tomcat:
+    relaxed-query-chars: '[,]'
+AUDIT_PRODUCER_DTO_TOPIC:
+  medlabms.audit

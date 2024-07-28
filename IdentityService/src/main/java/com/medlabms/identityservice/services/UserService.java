@@ -18,12 +18,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -43,21 +43,23 @@ public class UserService {
         this.userMapper = userMapper;
     }
 
-    public Mono<Page<UserDTO>> getAllUsers(PageRequest pageRequest, String filterBy, String search) {
+    public Page<UserDTO> getAllUsers(PageRequest pageRequest, String filterBy, String search) {
 
-        return findBy(pageRequest, filterBy, search)
-                .flatMap(user -> groupService.getGroup(user.getGroupId())
-                        .flatMap(groupDTO -> {
-                            var userDTO = userMapper.entityToDtoModel(user);
-                            userDTO.setGroupName(groupDTO.getName());
-                            return Mono.just(userDTO);
-                        }))
-                .collectList()
-                .zipWith(countBy(filterBy, search))
-                .flatMap(objects -> Mono.just(new PageImpl<>(objects.getT1(), pageRequest, objects.getT2())));
+        var list = findBy(pageRequest, filterBy, search).stream()
+                .map(user -> {
+                    var groupDTO = groupService.getGroup(user.getGroupId());
+                    var userDTO = userMapper.entityToDtoModel(user);
+                    userDTO.setGroupName(groupDTO.getName());
+                    return userDTO;
+                })
+                .collect(Collectors.toList());
+
+        var count = countBy(filterBy, search);
+
+        return new PageImpl<>(list, pageRequest, count);
     }
 
-    private Flux<User> findBy(PageRequest pageRequest, String filterBy, String search) {
+    private List<User> findBy(PageRequest pageRequest, String filterBy, String search) {
         if (Objects.nonNull(search) && !search.isBlank()) {
             return switch (filterBy) {
                 case "firstName" -> userRepository.findByFirstNameContainingIgnoreCase(search, pageRequest);
@@ -71,7 +73,7 @@ public class UserService {
         return userRepository.findAllBy(pageRequest);
     }
 
-    private Mono<Long> countBy(String filterBy, String search) {
+    private Long countBy(String filterBy, String search) {
         if (Objects.nonNull(search) && !search.isBlank()) {
             return switch (filterBy) {
                 case "firstName" -> userRepository.countByFirstNameContainingIgnoreCase(search);
@@ -85,100 +87,95 @@ public class UserService {
         return userRepository.count();
     }
 
-    public Mono<List<User>> getAllUsers() {
-        return userRepository.findAllBy(PageRequest.ofSize(Integer.MAX_VALUE).withSort(Sort.Direction.ASC, "id")).collectList();
+    public List<User> getAllUsers() {
+        return userRepository.findAllBy(PageRequest.ofSize(Integer.MAX_VALUE).withSort(Sort.Direction.ASC, "id"));
     }
-    public Mono<UserDTO> getUser(String id) {
-        return keycloakUserService.getUser(id)
-                .flatMap(userRepresentation -> Mono.just(userMapper.kcEntityToDtoModel(userRepresentation)));
+    public UserDTO getUser(String id) {
+        var user = keycloakUserService.getUser(id);
+        return userMapper.kcEntityToDtoModel(user.orElseThrow());
     }
 
-    public Mono<ResponseEntity<Object>> createUser(UserDTO userDTO) {
+    public ResponseEntity<Object> createUser(UserDTO userDTO) {
         UserRepresentation userRepresentation = userMapper.dtoModelToKCEntity(userDTO);
         userRepresentation.setEnabled(true);
-        return groupService.getGroup(userDTO.getGroupId()).flatMap(groupDTO -> {
-            userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
-            return keycloakUserService.createUser(userRepresentation)
-                    .flatMap(response -> {
-                        if (HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
-                            return keycloakUserService.searchUser(userDTO.getUsername())
-                                    .zipWhen(userRepresentation1 -> {
-                                        User user = userMapper.kcEntityToEntity(userRepresentation1);
-                                        user.setGroupId(userDTO.getGroupId());
-                                        return userRepository
-                                                .save(user)
-                                                .doOnError(throwable -> log.error(throwable.getMessage()));
-                                    })
-                                    .flatMap(objects -> Mono.just(objects.getT2()))
-                                    .flatMap(user -> auditProducerService.audit(AuditMessageDTO.builder().resourceName(userDTO.getFirstName().concat(" ").concat(userDTO.getLastName())).action("Create").type("User").build())
-                                            .then(Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user)))));
-                        } else {
-                            return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(response.readEntity(String.class)).build()));
-                        }
-                    });
-        });
+        var groupDTO = groupService.getGroup(userDTO.getGroupId());
+        userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
+        var response = keycloakUserService.createUser(userRepresentation);
+        if (HttpStatus.valueOf(response.orElseThrow().getStatus()).is2xxSuccessful()) {
+            var userRepresentation1 = keycloakUserService.searchUser(userDTO.getUsername());
+            User user = userMapper.kcEntityToEntity(userRepresentation1.orElseThrow());
+            user.setGroupId(userDTO.getGroupId());
+            try{
+                userRepository.save(user);
+            }catch (Exception e) {
+                log.error(e.getMessage());
+            }
+           auditProducerService.audit(AuditMessageDTO.builder()
+                           .resourceName(userDTO.getFirstName().concat(" ").concat(userDTO.getLastName()))
+                           .action("Create").type("User").build());
+           return ResponseEntity.ok(userMapper.entityToDtoModel(user));
+        } else {
+            return ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage(response.orElseThrow().readEntity(String.class)).build());
+        }
     }
 
-    public Mono<ResponseEntity<Object>> updateUser(Long id, UserDTO userDTO) {
+    public ResponseEntity<Object> updateUser(Long id, UserDTO userDTO) {
         UserRepresentation userRepresentation = userMapper.dtoModelToKCEntity(userDTO);
-        return userRepository.findById(id)
-                .flatMap(user -> groupService.getGroup(userDTO.getGroupId()).flatMap(groupDTO -> {
-                    userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
-                    return keycloakUserService.updateUser(user.getKcId(), userRepresentation)
-                            .flatMap(response -> {
-                                if (HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
-                                    User user1 = userMapper.kcEntityToEntity(response.readEntity(UserRepresentation.class));
-                                    user1.setId(user.getId());
-                                    user1.setGroupId(userDTO.getGroupId());
-                                    userMapper.updateUser(user1, user);
-                                    return userRepository.save(user)
-                                            .flatMap(user2 -> auditProducerService.audit(AuditMessageDTO.builder().resourceName(userDTO.getFirstName().concat(" ").concat(userDTO.getLastName())).action("Update").type("User").build())
-                                                    .then(Mono.just(ResponseEntity.ok(userMapper.entityToDtoModel(user2)))));
-                                } else {
-                                    return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
-                                            .errorMessage(response.getEntity().toString()).build()));
-                                }
-                            });
-                }));
+        var user = userRepository.findById(id);
+        var groupDTO = groupService.getGroup(userDTO.getGroupId());
+        userRepresentation.setGroups(Collections.singletonList(groupDTO.getName()));
+        var response = keycloakUserService.updateUser(user.orElseThrow().getKcId(), userRepresentation);
+        if (response.isPresent() && HttpStatus.valueOf(response.get().getStatus()).is2xxSuccessful()) {
+            User user1 = userMapper.kcEntityToEntity((UserRepresentation) ((Optional) response.get().getEntity()).get());
+            user1.setId(user.orElseThrow().getId());
+            user1.setGroupId(userDTO.getGroupId());
+            userMapper.updateUser(user1, user.orElseThrow());
+            var userDTO1 = userRepository.save(user.orElseThrow());
+            auditProducerService.audit(AuditMessageDTO.builder()
+                    .resourceName(userDTO.getFirstName().concat(" ").concat(userDTO.getLastName()))
+                    .action("Update").type("User").build());
+            return ResponseEntity.ok(userMapper.entityToDtoModel(userDTO1));
+        } else {
+            return ResponseEntity.badRequest().body(ErrorDTO.builder()
+                    .errorMessage(response.orElseThrow().getEntity().toString()).build());
+        }
     }
 
-    public Mono<ResponseEntity<Object>> deleteUser(Long id) {
-        return userRepository.findById(id).flatMap(user ->
-                Mono.defer(() -> userRepository.delete(user))
-                        .onErrorResume(throwable -> {
-                            throw new ChildFoundException();
-                        })
-                        .then(Mono.defer(() ->
-                                keycloakUserService.deleteUser(user.getKcId())
-                                        .flatMap(aBoolean -> {
-                                            if (aBoolean) {
-                                                return auditProducerService.audit(AuditMessageDTO.builder().resourceName(user.getFirstName().concat(" ").concat(user.getLastName())).action("Delete").type("User").build())
-                                                        .then(Mono.just(ResponseEntity.ok(aBoolean)));
-                                            } else {
-                                                return Mono.just(ResponseEntity.badRequest().build());
-                                            }
-                                        }))));
+    public ResponseEntity<Object> deleteUser(Long id) {
+        var user = userRepository.findById(id);
+        try{
+         userRepository.delete(user.orElseThrow());
+        }catch (Exception e) {
+            throw new ChildFoundException();
+        }
+        var deleted = keycloakUserService.deleteUser(user.orElseThrow().getKcId());
+        if (deleted) {
+            auditProducerService.audit(AuditMessageDTO.builder().resourceName(user.orElseThrow().getFirstName()
+                            .concat(" ").concat(user.orElseThrow().getLastName()))
+                            .action("Delete").type("User").build());
+            return ResponseEntity.ok(deleted);
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
-    public Mono<ResponseEntity<Object>> changePassword(Authentication authentication, String newPassword) {
+    public ResponseEntity<Object> changePassword(Authentication authentication, String newPassword) {
         String kcId = ((JwtAuthenticationToken) authentication).getTokenAttributes().get("sub").toString();
-        return keycloakUserService.changePassword(kcId, newPassword)
-                .flatMap(aBoolean -> {
-                    if (aBoolean)
-                        return Mono.just(ResponseEntity.ok(aBoolean));
-                    return Mono.just(ResponseEntity.badRequest().body(aBoolean));
-                });
+        var changePassword = keycloakUserService.changePassword(kcId, newPassword);
+        if (changePassword) {
+            return ResponseEntity.ok(changePassword);
+        }
+        return  ResponseEntity.badRequest().body(changePassword);
     }
 
-    public Mono<ResponseEntity<Object>> resetPassword(Long id) {
-        return userRepository.findById(id)
-                .map(User::getKcId)
-                .flatMap(keycloakId -> keycloakUserService.resetPassword(keycloakId))
-                .flatMap(aBoolean -> {
-                    if (aBoolean)
-                        return Mono.just(ResponseEntity.ok(aBoolean));
-                    return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
-                            .errorMessage("Failed to reset password for user with id ".concat(Long.toString(id))).build()));
-                });
+    public ResponseEntity<Object> resetPassword(Long id) {
+        var user = userRepository.findById(id)
+                .map(User::getKcId);
+        var result = keycloakUserService.resetPassword(user.orElseThrow());
+        if (result) {
+            return ResponseEntity.ok(result);
+        }
+        return ResponseEntity.badRequest().body(ErrorDTO.builder()
+                .errorMessage("Failed to reset password for user with id ".concat(Long.toString(id))).build());
     }
 }

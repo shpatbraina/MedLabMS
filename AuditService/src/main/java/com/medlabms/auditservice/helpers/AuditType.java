@@ -1,4 +1,4 @@
-package com.medlabms.helpers;
+package com.medlabms.auditservice.helpers;
 
 import lombok.Getter;
 

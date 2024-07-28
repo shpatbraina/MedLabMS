@@ -5,7 +5,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/auth/realms/MedLabMS
+          issuer-uri: http://localhost:8180/realms/MedLabMS
   cloud:
     consul:
       host: localhost

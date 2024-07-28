@@ -1,9 +1,8 @@
-package com.medlabms.models.entities;
+package com.medlabms.auditservice.models.entities;
 
-
+import jakarta.persistence.*;
 import lombok.*;
 
-import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Builder

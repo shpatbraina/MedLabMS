@@ -32,7 +32,7 @@ public class PatientsController {
 
     @GetMapping
     @PreAuthorize(("hasAuthority('SCOPE_patients:read')"))
-    public Mono<ResponseEntity<Object>> getAllPatients(@RequestParam(required = false) Integer page,
+    public ResponseEntity<Object> getAllPatients(@RequestParam(required = false) Integer page,
                                                        @RequestParam(required = false) Integer size,
                                                        @RequestParam(required = false) String sortBy,
                                                        @RequestParam(required = false) Boolean sortDesc,
@@ -44,34 +44,36 @@ public class PatientsController {
                 Sort.Direction sortDirection = sortDesc ? Sort.Direction.DESC : Sort.Direction.ASC;
                 pageRequest = pageRequest.withSort(sortDirection, sortBy);
             }
-            return patientService.getAllPatients(pageRequest, filterBy, search).flatMap(patients -> Mono.just(ResponseEntity.ok(patients)));
+            var list = patientService.getAllPatients(pageRequest, filterBy, search);
+            return ResponseEntity.ok(list);
         }
-        return patientService.getAllPatients().flatMap(patients -> Mono.just(ResponseEntity.ok(patients)));
+        var list = patientService.getAllPatients();
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_patients:read')")
-    public Mono<ResponseEntity<PatientDTO>> getPatient(@PathVariable String id) {
-        return patientService.getPatient(Long.parseLong(id))
-                .flatMap(patientDTO -> Objects.nonNull(patientDTO) ?
-                        Mono.just(ResponseEntity.ok(patientDTO)) : Mono.just(ResponseEntity.noContent().build()));
+    public ResponseEntity<PatientDTO> getPatient(@PathVariable String id) {
+        var patientDTO = patientService.getPatient(Long.parseLong(id));
+
+        return Objects.nonNull(patientDTO) ? ResponseEntity.ok(patientDTO) : ResponseEntity.noContent().build();
     }
 
     @PostMapping(value = "", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_patients:save')")
-    public Mono<ResponseEntity<Object>> createPatient(@RequestBody PatientDTO patientDTO) {
+    public ResponseEntity<Object> createPatient(@RequestBody PatientDTO patientDTO) {
         return patientService.createPatient(patientDTO);
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_patients:save')")
-    public Mono<ResponseEntity<Object>> updatePatient(@PathVariable Long id, @RequestBody PatientDTO patientDTO) {
+    public ResponseEntity<Object> updatePatient(@PathVariable Long id, @RequestBody PatientDTO patientDTO) {
         return patientService.updatePatient(id, patientDTO);
     }
 
     @DeleteMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_patients:save')")
-    public Mono<ResponseEntity<Boolean>> deletePatient(@PathVariable Long id) {
+    public ResponseEntity<Boolean> deletePatient(@PathVariable Long id) {
         return patientService.deletePatient(id);
     }
 

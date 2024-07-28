@@ -4,8 +4,10 @@ import com.medlabms.core.models.dtos.AuditMessageDTO;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
-import reactor.kafka.sender.SenderOptions;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+//import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
+//import reactor.kafka.sender.SenderOptions;
 
 import java.util.Map;
 
@@ -13,9 +15,9 @@ import java.util.Map;
 public class AuditProducerConfiguration {
 
     @Bean
-    public ReactiveKafkaProducerTemplate<String, AuditMessageDTO> auditProducerTemplate(
+    public KafkaTemplate<String, AuditMessageDTO> auditProducerTemplate(
             KafkaProperties properties) {
-        Map<String, Object> props = properties.buildProducerProperties();
-        return new ReactiveKafkaProducerTemplate<>(SenderOptions.create(props));
+        Map<String, Object> props = properties.buildProducerProperties(null);
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
     }
 }

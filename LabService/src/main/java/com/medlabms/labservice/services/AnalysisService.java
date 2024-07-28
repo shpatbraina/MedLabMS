@@ -14,22 +14,18 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class AnalysisService {
 
-    private AnalysisRepository analysisRepository;
-    private AnalysesGroupService analysesGroupService;
-    private AnalysisMapper analysisMapper;
-    private AuditProducerService auditProducerService;
+    private final AnalysisRepository analysisRepository;
+    private final AnalysesGroupService analysesGroupService;
+    private final AnalysisMapper analysisMapper;
+    private final AuditProducerService auditProducerService;
 
     public AnalysisService(AnalysisRepository analysisRepository, AnalysesGroupService analysesGroupService,
                            AnalysisMapper analysisMapper, AuditProducerService auditProducerService) {
@@ -39,28 +35,30 @@ public class AnalysisService {
         this.auditProducerService = auditProducerService;
     }
 
-    public Mono<List<AnalysisDTO>> getAllAnalyses() {
+    public List<AnalysisDTO> getAllAnalyses() {
         return analysisRepository.findAllBy(PageRequest.ofSize(Integer.MAX_VALUE)
                         .withSort(Sort.Direction.ASC, "id"))
-                .collectList()
-                .flatMap(analyses -> Mono.just(analyses.stream()
-                        .map(analysisMapper::entityToDtoModel).collect(Collectors.toList())));
+                .stream().map(analysisMapper::entityToDtoModel)
+                .toList();
     }
 
-    public Mono<Page<AnalysisDTO>> getAllAnalyses(PageRequest pageRequest, String filterBy, String search) {
-        return findBy(pageRequest, filterBy, search)
-                .flatMap(analysis -> analysesGroupService.getAnalysesGroup(analysis.getAnalysisGroupId())
-                        .flatMap(analysesGroupDTO -> {
-                            var analysisDTO = analysisMapper.entityToDtoModel(analysis);
-                            analysisDTO.setAnalysisGroupName(analysesGroupDTO.getName());
-                            return Mono.just(analysisDTO);
-                        }))
-                .collectList()
-                .zipWith(countBy(filterBy, search))
-                .flatMap(objects -> Mono.just(new PageImpl<>(objects.getT1(), pageRequest, objects.getT2())));
+    public Page<AnalysisDTO> getAllAnalyses(PageRequest pageRequest, String filterBy, String search) {
+        var analysis = findBy(pageRequest, filterBy, search);
+        if(analysis.isEmpty()) {
+            return Page.empty(pageRequest);
+        }
+        var analysisDTOs = analysis
+                .stream()
+                .map(analysis1 -> {
+                    var analysesGroupDTO = analysesGroupService.getAnalysesGroup(analysis1.getAnalysisGroupId());
+                    var analysisDTO = analysisMapper.entityToDtoModel(analysis1);
+                    analysisDTO.setAnalysisGroupName(analysesGroupDTO.getName());
+                    return analysisDTO;
+        }).toList();
+        return new PageImpl<>(analysisDTOs, pageRequest, countBy(filterBy, search));
     }
 
-    private Flux<Analysis> findBy(PageRequest pageRequest, String filterBy, String search) {
+    private List<Analysis> findBy(PageRequest pageRequest, String filterBy, String search) {
         if (Objects.nonNull(search) && !search.isBlank()) {
             return switch (filterBy) {
                 case "name" -> analysisRepository.findByNameContainingIgnoreCase(search, pageRequest);
@@ -71,7 +69,7 @@ public class AnalysisService {
         return analysisRepository.findAllBy(pageRequest);
     }
 
-    private Mono<Long> countBy(String filterBy, String search) {
+    private Long countBy(String filterBy, String search) {
         if (Objects.nonNull(search) && !search.isBlank()) {
             return switch (filterBy) {
                 case "name" -> analysisRepository.countByNameContainingIgnoreCase(search);
@@ -82,47 +80,55 @@ public class AnalysisService {
         return analysisRepository.count();
     }
 
-    public Mono<AnalysisDTO> getAnalysis(String id) {
-        return analysisRepository.findById(Long.parseLong(id))
-                .flatMap(analysis -> Mono.just(analysisMapper.entityToDtoModel(analysis)));
+    public AnalysisDTO getAnalysis(String id) {
+        var analysis = analysisRepository.findById(Long.parseLong(id)).orElseThrow();
+        return analysisMapper.entityToDtoModel(analysis);
     }
 
-    public Mono<ResponseEntity<Object>> createAnalysis(AnalysisDTO analysisDTO) {
-        return analysisRepository.save(analysisMapper.dtoModelToEntity(analysisDTO))
-                .doOnError(throwable -> log.error(throwable.getMessage()))
-                .onErrorReturn(new Analysis())
-                .flatMap(analysis -> {
-                    if (analysis.getId() != null)
-                        return auditProducerService.audit(AuditMessageDTO.builder().resourceName(analysisDTO.getName()).action("Create").type("Analyse").build())
-                                .map(data -> ResponseEntity.ok(analysisMapper.entityToDtoModel(analysis)));
-                    return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
-                            .errorMessage("Failed to create analysis").build()));
-                });
+    public ResponseEntity<Object> createAnalysis(AnalysisDTO analysisDTO) {
+        try {
+            var analysis = analysisRepository.save(analysisMapper.dtoModelToEntity(analysisDTO));
+            auditProducerService.audit(AuditMessageDTO.builder().resourceName(analysisDTO.getName()).action("Create").type("Analyse").build());
+            return ResponseEntity.ok(analysisMapper.entityToDtoModel(analysis));
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            return ResponseEntity.badRequest().body(ErrorDTO.builder()
+                    .errorMessage("Failed to create analysis")
+                    .build());
+        }
     }
 
-    public Mono<ResponseEntity<Object>> updateAnalysis(Long id, AnalysisDTO analysisDTO) {
-        return analysisRepository.findById(id)
-                .flatMap(analysis -> {
-                    analysisMapper.updateAnalysis(analysisMapper.dtoModelToEntity(analysisDTO), analysis);
-                    return analysisRepository.save(analysis)
-                            .onErrorReturn(new Analysis())
-                            .flatMap(analysis1 -> {
-                                if (analysis1.getId() != null)
-                                    return auditProducerService.audit(AuditMessageDTO.builder().resourceName(analysisDTO.getName()).action("Update").type("Analyse").build())
-                                            .map(data -> ResponseEntity.ok(analysisMapper.entityToDtoModel(analysis1)));
-                                return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
-                                        .errorMessage("Failed to update analysis").build()));
-                            });
-                });
+    public ResponseEntity<Object> updateAnalysis(Long id, AnalysisDTO analysisDTO) {
+        try {
+            var analysis = analysisRepository.findById(id).orElseThrow();
+            analysisMapper.updateAnalysis(analysisMapper.dtoModelToEntity(analysisDTO), analysis);
+            var analysis1 = analysisRepository.save(analysis);
+            auditProducerService.audit(AuditMessageDTO.builder()
+                    .resourceName(analysisDTO.getName())
+                    .action("Update")
+                    .type("Analyse")
+                    .build());
+            return ResponseEntity.ok(analysisMapper.entityToDtoModel(analysis1));
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return ResponseEntity.badRequest().body(ErrorDTO.builder()
+                    .errorMessage("Failed to update analysis").build());
+        }
     }
 
-    public Mono<ResponseEntity<Boolean>> deleteAnalysis(Long id) {
-        return analysisRepository.deleteById(id)
-                .then(auditProducerService.audit(
-                                AuditMessageDTO.builder().resourceName(id.toString()).action("Delete").type("Analyse").build())
-                        .map(unused1 -> ResponseEntity.ok(true)))
-                .onErrorResume(throwable -> {
-                    throw new ChildFoundException();
-                });
+    public ResponseEntity<Boolean> deleteAnalysis(Long id) {
+        try {
+            analysisRepository.deleteById(id);
+            auditProducerService.audit(
+                    AuditMessageDTO.builder()
+                            .resourceName(id.toString())
+                            .action("Delete")
+                            .type("Analyse")
+                            .build());
+            return ResponseEntity.ok(true);
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            throw new ChildFoundException();
+        }
     }
 }

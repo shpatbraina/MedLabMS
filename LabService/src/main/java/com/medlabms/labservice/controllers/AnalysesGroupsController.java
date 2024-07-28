@@ -7,16 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Objects;
 
@@ -32,7 +23,7 @@ public class AnalysesGroupsController {
 
     @GetMapping
     @PreAuthorize(("hasAuthority('SCOPE_analysesGroups:read')"))
-    public Mono<ResponseEntity<Object>> getAllAnalysesGroups(@RequestParam(required = false) Integer page,
+    public ResponseEntity<Object> getAllAnalysesGroups(@RequestParam(required = false) Integer page,
                                                              @RequestParam(required = false) Integer size,
                                                              @RequestParam(required = false) String sortBy,
                                                              @RequestParam(required = false) Boolean sortDesc,
@@ -44,35 +35,36 @@ public class AnalysesGroupsController {
                 Sort.Direction sortDirection = sortDesc ? Sort.Direction.DESC : Sort.Direction.ASC;
                 pageRequest = pageRequest.withSort(sortDirection, sortBy);
             }
-            return analysesGroupService.getAllAnalysesGroups(pageRequest, filterBy, search).flatMap(analysesGroups -> Mono.just(ResponseEntity.ok(analysesGroups)));
+            var analysesGroups = analysesGroupService.getAllAnalysesGroups(pageRequest, filterBy, search);
+            return ResponseEntity.ok(analysesGroups);
 
         }
-        return analysesGroupService.getAllAnalysesGroups().flatMap(groups -> Mono.just(ResponseEntity.ok(groups)));
+        var analysesGroups = analysesGroupService.getAllAnalysesGroups();
+        return ResponseEntity.ok(analysesGroups);
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_analysesGroups:read')")
-    public Mono<ResponseEntity<AnalysesGroupDTO>> getAnalysesGroup(@PathVariable Long id) {
-        return analysesGroupService.getAnalysesGroup(id)
-                .flatMap(analysesGroupDTO -> Objects.nonNull(analysesGroupDTO) ?
-                        Mono.just(ResponseEntity.ok(analysesGroupDTO)) : Mono.just(ResponseEntity.noContent().build()));
+    public ResponseEntity<AnalysesGroupDTO> getAnalysesGroup(@PathVariable Long id) {
+        var analysesGroupDTO = analysesGroupService.getAnalysesGroup(id);
+        return Objects.nonNull(analysesGroupDTO) ? ResponseEntity.ok(analysesGroupDTO) : ResponseEntity.noContent().build();
     }
 
     @PostMapping(value = "", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_analysesGroups:save')")
-    public Mono<ResponseEntity<Object>> createAnalysesGroup(@RequestBody AnalysesGroupDTO analysesGroupDTO) {
+    public ResponseEntity<Object> createAnalysesGroup(@RequestBody AnalysesGroupDTO analysesGroupDTO) {
         return analysesGroupService.createAnalysesGroup(analysesGroupDTO);
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_analysesGroups:save')")
-    public Mono<ResponseEntity<Object>> updateAnalysesGroup(@PathVariable Long id, @RequestBody AnalysesGroupDTO analysesGroupDTO) {
+    public ResponseEntity<Object> updateAnalysesGroup(@PathVariable Long id, @RequestBody AnalysesGroupDTO analysesGroupDTO) {
         return analysesGroupService.updateAnalysesGroup(id, analysesGroupDTO);
     }
 
     @DeleteMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_analysesGroups:save')")
-    public Mono<ResponseEntity<Boolean>> deleteAnalysesGroup(@PathVariable Long id) {
+    public ResponseEntity<Boolean> deleteAnalysesGroup(@PathVariable Long id) {
         return analysesGroupService.deleteAnalysesGroup(id);
     }
 

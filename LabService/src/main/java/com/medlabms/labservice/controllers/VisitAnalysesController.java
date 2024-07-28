@@ -30,18 +30,19 @@ public class VisitAnalysesController
     @GetMapping("{visitId}")
     @PreAuthorize(("hasAuthority('SCOPE_visits:read')"))
     public Mono<ResponseEntity<Object>> getAllVisitAnalyses(@PathVariable Long visitId) {
-        return visitAnalysesService.getAllVisitAnalyses(visitId).flatMap(visitAnalysisDTOS -> Mono.just(ResponseEntity.ok(visitAnalysisDTOS)));
+        var visitAnalysisDTOS = visitAnalysesService.getAllVisitAnalyses(visitId);
+        return Mono.just(ResponseEntity.ok(visitAnalysisDTOS));
     }
 
     @PostMapping(value = "", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_visits:save')")
-    public Mono<ResponseEntity<Object>> createVisitAnalyses(@RequestBody List<VisitAnalysisDTO> visitAnalysisDTOs) {
+    public ResponseEntity<Object> createVisitAnalyses(@RequestBody List<VisitAnalysisDTO> visitAnalysisDTOs) {
         return visitAnalysesService.createVisitAnalyses(visitAnalysisDTOs);
     }
 
     @PutMapping(value = "/{visitId}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('SCOPE_visits:save')")
-    public Mono<ResponseEntity<Object>> updateVisitAnalyses(@PathVariable Long visitId, @RequestBody List<VisitAnalysisDTO> visitAnalysisDTOs) {
+    public ResponseEntity<Object> updateVisitAnalyses(@PathVariable Long visitId, @RequestBody List<VisitAnalysisDTO> visitAnalysisDTOs) {
         return visitAnalysesService.updateVisitAnalysis(visitId, visitAnalysisDTOs);
     }
 

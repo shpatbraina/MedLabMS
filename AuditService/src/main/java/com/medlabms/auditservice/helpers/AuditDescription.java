@@ -1,6 +1,6 @@
-package com.medlabms.helpers;
+package com.medlabms.auditservice.helpers;
 
-import com.medlabms.models.entities.Audit;
+import com.medlabms.auditservice.models.entities.Audit;
 import lombok.Getter;
 
 import java.util.Arrays;
@@ -42,7 +42,7 @@ public enum AuditDescription {
         return description;
     }
 
-    public static String generateDescription(AuditDescription auditDescription, Audit audit) {
+    private static String generateDescription(AuditDescription auditDescription, Audit audit) {
         return auditDescription.toString().formatted(audit.getResourceName(), audit.getModifiedBy());
     }
 

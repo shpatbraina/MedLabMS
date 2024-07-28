@@ -3,17 +3,17 @@ package com.medlabms.labservice.repositories;
 
 import com.medlabms.labservice.models.entities.Analysis;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @Repository
-public interface AnalysisRepository extends R2dbcRepository<Analysis, Long> {
+public interface AnalysisRepository extends JpaRepository<Analysis, Long> {
 
-    Flux<Analysis> findAllBy(Pageable pageable);
-    Flux<Analysis> findByNameContainingIgnoreCase(String name, Pageable pageable);
-    Flux<Analysis> findByAnalysisGroupId(Long analysisGroupId, Pageable pageable);
-    Mono<Long> countByNameContainingIgnoreCase(String name);
-    Mono<Long> countByAnalysisGroupId(Long analysisGroupId);
+    List<Analysis> findAllBy(Pageable pageable);
+    List<Analysis> findByNameContainingIgnoreCase(String name, Pageable pageable);
+    List<Analysis> findByAnalysisGroupId(Long analysisGroupId, Pageable pageable);
+    Long countByNameContainingIgnoreCase(String name);
+    Long countByAnalysisGroupId(Long analysisGroupId);
 }

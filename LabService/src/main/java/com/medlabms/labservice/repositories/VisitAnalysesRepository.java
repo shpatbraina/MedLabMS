@@ -1,19 +1,18 @@
 package com.medlabms.labservice.repositories;
 
 
+import com.medlabms.labservice.models.entities.VisitAnalysis;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.medlabms.labservice.models.entities.VisitAnalysis;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import java.util.List;
 
 @Repository
-public interface VisitAnalysesRepository extends R2dbcRepository<VisitAnalysis, Long> {
+public interface VisitAnalysesRepository extends JpaRepository<VisitAnalysis, Long> {
 
-    Flux<VisitAnalysis> findAllByVisitId(Pageable pageable, Long visitId);
-    Flux<VisitAnalysis> findAllByVisitId(Long visitId);
-    Mono<VisitAnalysis> findByVisitIdAndAnalysisId(Long visitId, Long analysisId);
-    Mono<Void> deleteByVisitId(Long visitId);
+    List<VisitAnalysis> findAllByVisitId(Pageable pageable, Long visitId);
+    List<VisitAnalysis> findAllByVisitId(Long visitId);
+    VisitAnalysis findByVisitIdAndAnalysisId(Long visitId, Long analysisId);
+    void deleteByVisitId(Long visitId);
 }

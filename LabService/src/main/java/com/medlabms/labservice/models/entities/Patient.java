@@ -1,14 +1,16 @@
 package com.medlabms.labservice.models.entities;
 
 import com.medlabms.core.models.entities.Model;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDate;
 
 @Data
-@Table("patients")
+@Entity
+@Table(name = "patients")
 public class Patient extends Model {
 
     @Id

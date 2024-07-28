@@ -16,15 +16,20 @@ spring:
         json:
           trusted:
             packages: '*'
-  r2dbc:
-    url: r2dbc:postgres://postgres@localhost:5432/medlabms
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  datasource:
+    url: jdbc:postgresql://localhost:5432/medlabms
     username: postgres
     password: postgres
+    driver-class-name: org.postgresql.Driver
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/auth/realms/MedLabMS
+          issuer-uri: http://localhost:8180/realms/MedLabMS
   cloud:
     consul:
       host: localhost
@@ -37,5 +42,7 @@ spring:
           ttl: 10s
 server:
   port: 8765
+  tomcat:
+    relaxed-query-chars: '[,]'
 AUDIT_PRODUCER_DTO_TOPIC:
   medlabms.audit

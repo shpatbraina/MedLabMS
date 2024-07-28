@@ -2,17 +2,19 @@ package com.medlabms.identityservice.repositories;
 
 import com.medlabms.identityservice.models.entities.Group;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
+//import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 @Repository
-public interface GroupRepository extends R2dbcRepository<Group, Long> {
+public interface GroupRepository extends JpaRepository<Group, Long> {
 
-    Flux<Group> findAllBy(Pageable pageable);
-    Flux<Group> findByNameContainingIgnoreCase(String name, Pageable pageable);
-    Mono<Group> findByKcId(String keycloakId);
-
-    Mono<Long> countByNameContainingIgnoreCase(String name);
+    List<Group> findAllBy(Pageable pageable);
+    List<Group> findByNameContainingIgnoreCase(String name, Pageable pageable);
+    Group findByKcId(String keycloakId);
+    Long countByNameContainingIgnoreCase(String name);
 }

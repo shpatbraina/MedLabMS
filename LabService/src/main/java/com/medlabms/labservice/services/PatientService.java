@@ -14,8 +14,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Objects;
@@ -35,23 +33,24 @@ public class PatientService {
         this.patientMapper = patientMapper;
     }
 
-    public Mono<List<PatientDTO>> getAllPatients() {
+    public List<PatientDTO> getAllPatients() {
         return patientRepository.findAllBy(PageRequest.ofSize(Integer.MAX_VALUE)
                         .withSort(Sort.Direction.ASC, "id"))
-                .collectList()
-                .flatMap(patients -> Mono.just(patients.stream()
-                        .map(patientMapper::entityToDtoModel).collect(Collectors.toList())));
+                .stream()
+                        .map(patientMapper::entityToDtoModel).collect(Collectors.toList());
     }
 
-    public Mono<Page<PatientDTO>> getAllPatients(PageRequest pageRequest, String filterBy, String search) {
-        return findBy(pageRequest, filterBy, search)
-                .flatMap(patient -> Mono.just(patientMapper.entityToDtoModel(patient)))
-                .collectList()
-                .zipWith(countBy(filterBy, search))
-                .flatMap(objects -> Mono.just(new PageImpl<>(objects.getT1(), pageRequest, objects.getT2())));
+    public Page<PatientDTO> getAllPatients(PageRequest pageRequest, String filterBy, String search) {
+        var list = findBy(pageRequest, filterBy, search)
+                .stream().map(patient -> patientMapper.entityToDtoModel(patient))
+                .collect(Collectors.toList());
+
+        var count = countBy(filterBy, search);
+
+        return new PageImpl<>(list, pageRequest, count);
     }
 
-    private Flux<Patient> findBy(PageRequest pageRequest, String filterBy, String search) {
+    private List<Patient> findBy(PageRequest pageRequest, String filterBy, String search) {
         if (Objects.nonNull(search) && !search.isBlank()) {
             return switch (filterBy) {
                 case "firstName" -> patientRepository.findByFirstNameContainingIgnoreCase(search, pageRequest);
@@ -63,7 +62,7 @@ public class PatientService {
         return patientRepository.findAllBy(pageRequest);
     }
 
-    private Mono<Long> countBy(String filterBy, String search) {
+    private Long countBy(String filterBy, String search) {
         if (Objects.nonNull(search) && !search.isBlank()) {
             return switch (filterBy) {
                 case "firstName" -> patientRepository.countByFirstNameContainingIgnoreCase(search);
@@ -75,46 +74,41 @@ public class PatientService {
         return patientRepository.count();
     }
 
-    public Mono<PatientDTO> getPatient(Long id) {
-        return patientRepository.findById(id)
-                .flatMap(patient -> Mono.just(patientMapper.entityToDtoModel(patient)));
+    public PatientDTO getPatient(Long id) {
+        var patient = patientRepository.findById(id);
+        return patientMapper.entityToDtoModel(patient.orElseThrow());
     }
 
-    public Mono<ResponseEntity<Object>> createPatient(PatientDTO patientDTO) {
-        return patientRepository.save(patientMapper.dtoModelToEntity(patientDTO))
-                .doOnError(throwable -> log.error(throwable.getMessage()))
-                .onErrorReturn(new Patient())
-                .flatMap(patient -> {
-                    if (patient.getId() != null)
-                        return auditProducerService.audit(AuditMessageDTO.builder().resourceName(patientDTO.getFullName()).action("Create").type("Patient").build())
-                                .then(Mono.just(ResponseEntity.ok(patientMapper.entityToDtoModel(patient))));
-                    return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
-                            .errorMessage("Failed to create patient").build()));
-                });
+    public ResponseEntity<Object> createPatient(PatientDTO patientDTO) {
+        try {
+            var patient = patientRepository.save(patientMapper.dtoModelToEntity(patientDTO));
+            auditProducerService.audit(AuditMessageDTO.builder().resourceName(patientDTO.getFullName()).action("Create").type("Patient").build());
+            return ResponseEntity.ok(patientMapper.entityToDtoModel(patient));
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            return ResponseEntity.badRequest().body(ErrorDTO.builder().errorMessage("Failed to create patient").build());
+        }
     }
 
-    public Mono<ResponseEntity<Object>> updatePatient(Long id, PatientDTO patientDTO) {
-        return patientRepository.findById(id)
-                .flatMap(patient -> {
-                    patientMapper.updatePatient(patientMapper.dtoModelToEntity(patientDTO), patient);
-                    return patientRepository.save(patient)
-                            .onErrorReturn(new Patient())
-                            .flatMap(patient1 -> {
-                                if (patient1.getId() != null)
-                                    return auditProducerService.audit(AuditMessageDTO.builder().resourceName(patientDTO.getFullName()).action("Update").type("Patient").build())
-                                            .then(Mono.just(ResponseEntity.ok(patientMapper.entityToDtoModel(patient1))));
-                                return Mono.just(ResponseEntity.badRequest().body(ErrorDTO.builder()
-                                        .errorMessage("Failed to update patient").build()));
-                            });
-                });
+    public ResponseEntity<Object> updatePatient(Long id, PatientDTO patientDTO) {
+        var patient = patientRepository.findById(id);
+        patientMapper.updatePatient(patientMapper.dtoModelToEntity(patientDTO), patient.orElseThrow());
+        var updated = patientRepository.save(patient.orElseThrow());
+        if (Objects.nonNull(updated.getId())) {
+            auditProducerService.audit(AuditMessageDTO.builder().resourceName(patientDTO.getFullName()).action("Update").type("Patient").build());
+            return ResponseEntity.ok(patientMapper.entityToDtoModel(updated));
+        }
+        return ResponseEntity.badRequest().body(ErrorDTO.builder()
+                .errorMessage("Failed to update patient").build());
     }
 
-    public Mono<ResponseEntity<Boolean>> deletePatient(Long id) {
-        return patientRepository.deleteById(id)
-                .then(auditProducerService.audit(AuditMessageDTO.builder().resourceName(id.toString()).action("Delete").type("Patient").build())
-                        .map(unused1 -> ResponseEntity.ok(true)))
-                .onErrorResume(throwable -> {
-                    throw new ChildFoundException();
-                });
+    public ResponseEntity<Boolean> deletePatient(Long id) {
+        try {
+            patientRepository.deleteById(id);
+            auditProducerService.audit(AuditMessageDTO.builder().resourceName(id.toString()).action("Delete").type("Patient").build());
+            return ResponseEntity.ok(true);
+        }catch (Exception e){
+            throw new ChildFoundException();
+        }
     }
 }
