@@ -1,33 +1,25 @@
 package com.medlabms.gatewayservice.configs;
 
-import org.springframework.cloud.client.loadbalancer.LoadBalanced;
-import org.springframework.cloud.gateway.route.RouteLocator;
-import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
-import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.function.RouterFunction;
+import org.springframework.web.servlet.function.ServerResponse;
 
-@Component
+import static org.springframework.cloud.gateway.server.mvc.filter.LoadBalancerFilterFunctions.lb;
+import static org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions.route;
+import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions.http;
+import static org.springframework.cloud.gateway.server.mvc.predicate.GatewayRequestPredicates.path;
+
+@Configuration
 public class RouterConfiguration {
 
     @Bean
-    public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
-        return builder.routes()
-                .route("identity-service", r -> r.path("/session/**").uri("lb://identity-service"))
-                .route("identity-service", r -> r.path("/groups/**").uri("lb://identity-service"))
-                .route("identity-service", r -> r.path("/users/**").uri("lb://identity-service"))
-                .route("lab-service", r -> r.path("/patients/**").uri("lb://lab-service"))
-                .route("lab-service", r -> r.path("/analysesGroups/**").uri("lb://lab-service"))
-                .route("lab-service", r -> r.path("/analyses/**").uri("lb://lab-service"))
-                .route("lab-service", r -> r.path("/visits/**").uri("lb://lab-service"))
-                .route("audit-service", r -> r.path("/audits/**").uri("lb://audit-service"))
-                .route("audit-service", r -> r.path("/reports/**").uri("lb://audit-service"))
-                .build();
-    }
-
-    @Bean
-    @LoadBalanced
-    public WebClient.Builder loadBalancedWebClientBuilder() {
-        return WebClient.builder();
+    public RouterFunction<ServerResponse> gatewayRouterFunctionsPath() {
+        return route().route(path("/session/**", "/groups/**", "/users/**"), http())
+                .filter(lb("identity-service")).build()
+                .andRoute(path("/patients/**", "/analysesGroups/**", "/analyses/**", "/visits/**"), http())
+                .filter(lb("lab-service"))
+                .andRoute(path("/audits/**", "/reports/**"), http())
+                .filter(lb("audit-service"));
     }
 }

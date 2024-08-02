@@ -18,3 +18,5 @@ spring:
           ttl: 10s
 server:
   port: 8081
+  tomcat:
+    relaxed-query-chars: '[,]'
