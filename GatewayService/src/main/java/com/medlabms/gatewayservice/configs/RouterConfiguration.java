@@ -19,7 +19,9 @@ public class RouterConfiguration {
                 .filter(lb("identity-service")).build()
                 .andRoute(path("/patients/**", "/analysesGroups/**", "/analyses/**", "/visits/**"), http())
                 .filter(lb("lab-service"))
-                .andRoute(path("/audits/**", "/reports/**"), http())
-                .filter(lb("audit-service"));
+                .andRoute(path("/audits/**"), http())
+                .filter(lb("audit-service"))
+                .andRoute(path("/stats/**", "/reports/**"), http())
+                .filter(lb("stats-service"));
     }
 }

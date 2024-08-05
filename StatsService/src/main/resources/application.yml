@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: stats-service
+  kafka:
+    bootstrap-servers: localhost:29092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      max:
+        request:
+          size: 1000
+      linger:
+        ms: 0
+      spring:
+        json:
+          trusted:
+            packages: '*'
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  datasource:
+    url: jdbc:postgresql://localhost:5432/medlabms
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/MedLabMS
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        healthCheckPath: ${management.server.servlet.context-path}/actuator/health
+        healthCheckInterval: 15s
+        heartbeat:
+          enabled: true
+          ttl: 10s
+server:
+  port: 8767
+  tomcat:
+    relaxed-query-chars: '[,]'
+AUDIT_PRODUCER_DTO_TOPIC:
+  medlabms.audit

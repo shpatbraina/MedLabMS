@@ -20,6 +20,7 @@
         <module>IdentityService</module>
         <module>LabService</module>
         <module>AuditService</module>
+        <module>StatsService</module>
     </modules>
 
     <build>
