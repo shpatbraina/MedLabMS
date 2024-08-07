@@ -33,6 +33,10 @@ public class StatsService {
         map.put("analysesCount", analysisRepository.count());
         map.put("visitsCount", visitRepository.count());
         map.put("visitAnalysesCount", visitAnalysesRepository.count());
+        map.put("paidCount", visitRepository.countByPaid(true));
+        map.put("unpaidCount", visitRepository.countByPaid(false));
+        map.put("totalPaidPriceCount", visitRepository.sumTotalPriceByPaid(true));
+        map.put("totalUnpaidPriceCount", visitRepository.sumTotalPriceByPaid(false));
         return map;
     }
 }

@@ -21,4 +21,5 @@ public class Visit extends Model {
     private Long patientId;
     private LocalDate dateOfVisit;
     private Double totalPrice;
+    private Boolean paid;
 }

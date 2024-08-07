@@ -26,11 +26,11 @@ import java.util.stream.Collectors;
 @Service
 public class VisitService {
 
-    private VisitRepository visitRepository;
-    private PatientService patientService;
-    private AuditProducerService auditProducerService;
-    private VisitAnalysesRepository visitAnalysesRepository;
-    private VisitMapper visitMapper;
+    private final VisitRepository visitRepository;
+    private final PatientService patientService;
+    private final AuditProducerService auditProducerService;
+    private final VisitAnalysesRepository visitAnalysesRepository;
+    private final VisitMapper visitMapper;
 
     public VisitService(VisitRepository visitRepository, PatientService patientService,
                         AuditProducerService auditProducerService, VisitAnalysesRepository visitAnalysesRepository,
@@ -65,15 +65,23 @@ public class VisitService {
     }
 
     private List<Visit> findBy(PageRequest pageRequest, String filterBy, String search) {
-        if (Objects.nonNull(search) && !search.isBlank() && "patientId".equals(filterBy)) {
-            return visitRepository.findByPatientId(Long.parseLong(search), pageRequest);
+        if (Objects.nonNull(search) && !search.isBlank()) {
+            return switch (filterBy) {
+                case "patientId" -> visitRepository.findByPatientId(Long.parseLong(search), pageRequest);
+                case "paid" -> visitRepository.findByPaid(Boolean.parseBoolean(search), pageRequest);
+                default -> visitRepository.findAllBy(pageRequest);
+            };
         }
         return visitRepository.findAllBy(pageRequest);
     }
 
     private Long countBy(String filterBy, String search) {
-        if (Objects.nonNull(search) && !search.isBlank() && "patientId".equals(filterBy)) {
-            return visitRepository.countByPatientId(Long.parseLong(search));
+        if (Objects.nonNull(search) && !search.isBlank()){
+            return switch (filterBy) {
+                case "patientId" -> visitRepository.countByPatientId(Long.parseLong(search));
+                case "paid" -> visitRepository.countByPaid(Boolean.parseBoolean(search));
+                default -> visitRepository.count();
+            };
         }
         return visitRepository.count();
     }
@@ -145,5 +153,19 @@ public class VisitService {
         visit.setTotalPrice(total.get());
         visit = visitRepository.save(visit);
         return visit.getTotalPrice();
+    }
+
+    public ResponseEntity<Boolean> markAsPaid(Long id, Boolean paid) {
+        var visit = visitRepository.findById(id).orElseThrow();
+        if(paid.equals(visit.getPaid()))
+            return ResponseEntity.ok(false);
+        visit.setPaid(paid);
+        visitRepository.save(visit);
+        auditProducerService.audit(AuditMessageDTO.builder()
+                .resourceName(visit.getId().toString())
+                .action(paid ? "VISIT_MARKED_AS_PAID" : "VISIT_MARKED_AS_UNPAID")
+                .type("Visit")
+                .build());
+        return ResponseEntity.ok(true);
     }
 }

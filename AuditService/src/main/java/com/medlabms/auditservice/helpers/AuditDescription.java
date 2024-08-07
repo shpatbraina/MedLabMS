@@ -25,7 +25,9 @@ public enum AuditDescription {
     DELETE_ANALYSES(AuditType.ANALYSES, AuditAction.DELETE,"Analysis with id %s was deleted by %s"),
     CREATE_VISITS(AuditType.VISITS, AuditAction.CREATE,"Visit %s was created by %s"),
     UPDATE_VISITS(AuditType.VISITS, AuditAction.UPDATE,"Visit %s was updated by %s"),
-    DELETE_VISITS(AuditType.VISITS, AuditAction.DELETE,"Visit with id %s was deleted by %s");
+    DELETE_VISITS(AuditType.VISITS, AuditAction.DELETE,"Visit with id %s was deleted by %s"),
+    MARKED_AS_PAID_VISITS(AuditType.VISITS, AuditAction.VISIT_MARKED_AS_PAID,"Visit %s was marked as paid by %s"),
+    MARKED_AS_UNPAID_VISITS(AuditType.VISITS, AuditAction.VISIT_MARKED_AS_UNPAID,"Visit %s was marked as unpaid by %s");
 
     private AuditType auditType;
     private AuditAction auditAction;

@@ -37,6 +37,8 @@ public class UserController {
             if (Objects.nonNull(sortBy) && !sortBy.isBlank() && Objects.nonNull(sortDesc)) {
                 Sort.Direction sortDirection = sortDesc ? Sort.Direction.DESC : Sort.Direction.ASC;
                 pageRequest = pageRequest.withSort(sortDirection, sortBy);
+            } else {
+                pageRequest = pageRequest.withSort(Sort.Direction.ASC, "id");
             }
             var list = userService.getAllUsers(pageRequest, filterBy, search);
             return ResponseEntity.ok(list);

@@ -11,4 +11,5 @@ public class VisitDTO
     private String patientName;
     private String dateOfVisit;
     private Double totalPrice;
+    private Boolean paid;
 }

@@ -275,6 +275,11 @@
         </createTable>
     </changeSet>
     <changeSet author="ShpatBraina" id="20220806-01">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="audits"/>
+            </not>
+        </preConditions>
         <createTable tableName="audits">
             <column autoIncrement="true" name="id" type="INTEGER">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="audits_pkey"/>
@@ -286,6 +291,18 @@
             <column name="modified_by" type="VARCHAR(255)"/>
             <column name="date" type="TIMESTAMP"/>
         </createTable>
+    </changeSet>
+    <changeSet author="ShpatBraina" id="20240805-01">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists columnName="paid" tableName="visits"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="visits">
+            <column name="paid" afterColumn="total_price" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
     </changeSet>
 
 </databaseChangeLog>

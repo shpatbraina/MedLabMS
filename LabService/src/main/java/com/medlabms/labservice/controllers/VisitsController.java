@@ -67,4 +67,16 @@ public class VisitsController {
         return visitService.deleteVisit(id);
     }
 
+    @PutMapping(value = "/mark-as-paid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('SCOPE_visits:save')")
+    public ResponseEntity<Boolean> markAsPaid(@PathVariable Long id) {
+        return visitService.markAsPaid(id, true);
+    }
+
+    @PutMapping(value = "/mark-as-unpaid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('SCOPE_visits:save')")
+    public ResponseEntity<Boolean> markAsUnpaid(@PathVariable Long id) {
+        return visitService.markAsPaid(id, false);
+    }
+
 }
