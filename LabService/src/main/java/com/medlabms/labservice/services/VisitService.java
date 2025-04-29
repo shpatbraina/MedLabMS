@@ -8,6 +8,8 @@ import com.medlabms.labservice.models.dtos.VisitDTO;
 import com.medlabms.labservice.models.entities.Visit;
 import com.medlabms.labservice.repositories.VisitAnalysesRepository;
 import com.medlabms.labservice.repositories.VisitRepository;
+import com.medlabms.labservice.services.helpers.PDFReportGenerator;
+import com.medlabms.labservice.services.mappers.VisitAnalysesMapper;
 import com.medlabms.labservice.services.mappers.VisitMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,17 +33,24 @@ public class VisitService {
     private final PatientService patientService;
     private final AuditProducerService auditProducerService;
     private final VisitAnalysesRepository visitAnalysesRepository;
+    private final VisitAnalysesMapper visitAnalysesMapper;
     private final VisitMapper visitMapper;
+    private final PDFReportGenerator pdfReportGenerator;
+    private final AnalysisService analysisService;
+    private final AnalysesGroupService analysesGroupService;
 
     public VisitService(VisitRepository visitRepository, PatientService patientService,
-                        AuditProducerService auditProducerService, VisitAnalysesRepository visitAnalysesRepository,
-                        VisitMapper visitMapper) {
+                        AuditProducerService auditProducerService, VisitAnalysesRepository visitAnalysesRepository, VisitAnalysesMapper visitAnalysesMapper,
+                        VisitMapper visitMapper, PDFReportGenerator pdfReportGenerator, AnalysisService analysisService, AnalysesGroupService analysesGroupService) {
         this.visitRepository = visitRepository;
         this.patientService = patientService;
         this.auditProducerService = auditProducerService;
         this.visitAnalysesRepository = visitAnalysesRepository;
+        this.visitAnalysesMapper = visitAnalysesMapper;
         this.visitMapper = visitMapper;
-
+        this.pdfReportGenerator = pdfReportGenerator;
+        this.analysisService = analysisService;
+        this.analysesGroupService = analysesGroupService;
     }
 
     public List<VisitDTO> getAllVisits() {
@@ -167,5 +177,19 @@ public class VisitService {
                 .type("Visit")
                 .build());
         return ResponseEntity.ok(true);
+    }
+
+    public ByteArrayInputStream generateVisitAnalysesPDF(Long visitId) {
+        var visit = visitRepository.findById(visitId).orElseThrow();
+        var patient = patientService.getPatient(visit.getPatientId());
+        var visitAnalyses = visitAnalysesRepository.findAllByVisitId(visitId)
+                .stream().map(visitAnalysesMapper::entityToDtoModel)
+                .collect(Collectors.toList());
+        visitAnalyses.forEach(visitAnalyse -> {
+           var analysis = analysisService.getAnalysis(visitAnalyse.getAnalysisId().toString());
+           var analysesGroup = analysesGroupService.getAnalysesGroup(analysis.getAnalysisGroupId());
+           visitAnalyse.setAnalysisGroupName(analysesGroup.getName());
+        });
+        return pdfReportGenerator.generateVisitAnalysesPDF(visit, patient, visitAnalyses);
     }
 }

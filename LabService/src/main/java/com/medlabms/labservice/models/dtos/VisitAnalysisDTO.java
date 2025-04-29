@@ -9,6 +9,7 @@ public class VisitAnalysisDTO
 	private Long id;
 	private Long visitId;
 	private Long analysisId;
+	private String analysisGroupName;
 	private String name;
 	private String value;
 	private String metric;

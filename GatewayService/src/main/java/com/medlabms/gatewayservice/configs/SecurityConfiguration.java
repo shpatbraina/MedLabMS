@@ -35,6 +35,7 @@ class SecurityConfiguration {
 		corsConfig.setMaxAge(3600L);
 		corsConfig.addAllowedMethod("*");
 		corsConfig.addAllowedHeader("*");
+		corsConfig.addExposedHeader("Content-Disposition");
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", corsConfig);

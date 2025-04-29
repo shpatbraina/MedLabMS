@@ -2,8 +2,11 @@ package com.medlabms.labservice.controllers;
 
 import com.medlabms.labservice.models.dtos.VisitDTO;
 import com.medlabms.labservice.services.VisitService;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.InputStreamSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -77,6 +80,18 @@ public class VisitsController {
     @PreAuthorize("hasAuthority('SCOPE_visits:save')")
     public ResponseEntity<Boolean> markAsUnpaid(@PathVariable Long id) {
         return visitService.markAsPaid(id, false);
+    }
+
+    @GetMapping(value = "/export-pdf/{id}", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAuthority('SCOPE_visits:read')")
+    public ResponseEntity<InputStreamSource> exportPDF(@PathVariable Long id) {
+        var visitAnalyses = visitService.generateVisitAnalysesPDF(id);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Disposition", "attachment; filename=Visit_"+id+".pdf");
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(new InputStreamResource(visitAnalyses));
     }
 
 }
