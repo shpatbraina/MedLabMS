@@ -102,6 +102,7 @@ public class VisitService {
     }
 
     public ResponseEntity<Object> createVisit(VisitDTO visitDTO) {
+        visitDTO.setPaid(false);
         var visit = visitRepository.save(visitMapper.dtoModelToEntity(visitDTO));
         if (visit.getId() != null) {
             auditProducerService

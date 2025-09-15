@@ -5,14 +5,7 @@ import com.medlabms.labservice.services.VisitAnalysesService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -29,9 +22,9 @@ public class VisitAnalysesController
 
     @GetMapping("{visitId}")
     @PreAuthorize(("hasAuthority('SCOPE_visits:read')"))
-    public Mono<ResponseEntity<Object>> getAllVisitAnalyses(@PathVariable Long visitId) {
+    public ResponseEntity<Object> getAllVisitAnalyses(@PathVariable Long visitId) {
         var visitAnalysisDTOS = visitAnalysesService.getAllVisitAnalyses(visitId);
-        return Mono.just(ResponseEntity.ok(visitAnalysisDTOS));
+        return ResponseEntity.ok(visitAnalysisDTOS);
     }
 
     @PostMapping(value = "", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
